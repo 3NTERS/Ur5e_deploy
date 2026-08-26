@@ -1,0 +1,174 @@
+<?xml version="1.0"?>
+<!--
+  MuJoCo assembly of the Robotiq 2F-85 C3 model from this package's
+  robotiq_arg2f_85_model_macro.xacro.  Link frames, joint origins, limits,
+  visual meshes, collision meshes and inertial data follow that Xacro.
+-->
+<mujoco model="robotiq_2f_85_gripper_visualization">
+  <compiler angle="radian" meshdir="meshes" autolimits="true"/>
+  <option cone="elliptic" impratio="10"/>
+
+  <asset>
+    <material name="black" rgba="0.1 0.1 0.1 1"/>
+    <material name="metal" rgba="0.7921569 0.8196078 0.9333333 1"/>
+    <material name="pad" rgba="0.9 0.9 0.9 1"/>
+
+    <mesh name="base_visual" file="mujoco/visual/robotiq_arg2f_85_base_link.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="base_collision" file="collision/robotiq_arg2f_base_link.stl"/>
+    <mesh name="outer_knuckle_visual" file="mujoco/visual/robotiq_arg2f_85_outer_knuckle.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="outer_knuckle_collision" file="mujoco/collision/robotiq_arg2f_85_outer_knuckle.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="outer_finger_visual" file="mujoco/visual/robotiq_arg2f_85_outer_finger.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="outer_finger_collision" file="mujoco/collision/robotiq_arg2f_85_outer_finger.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="inner_knuckle_visual" file="mujoco/visual/robotiq_arg2f_85_inner_knuckle.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="inner_knuckle_collision" file="mujoco/collision/robotiq_arg2f_85_inner_knuckle.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="inner_finger_visual" file="mujoco/visual/robotiq_arg2f_85_inner_finger.obj" scale="0.001 0.001 0.001"/>
+    <mesh name="inner_finger_collision" file="mujoco/collision/robotiq_arg2f_85_inner_finger.obj" scale="0.001 0.001 0.001"/>
+  </asset>
+
+  <default>
+    <default class="2f85">
+      <joint axis="1 0 0" armature="0.001" damping="1.0"
+        solimplimit="0.95 0.99 0.001" solreflimit="0.005 1"/>
+      <general biastype="affine"/>
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2" mass="0"/>
+      </default>
+      <default class="collision">
+        <geom type="mesh" group="3" mass="0" friction="0.7"
+          solimp="0.95 0.99 0.001" solref="0.004 1" priority="1"/>
+      </default>
+      <default class="pad_collision">
+        <geom type="box" group="3" density="1000" friction="0.9"
+          solimp="0.95 0.99 0.001" solref="0.004 1" priority="2"/>
+      </default>
+    </default>
+  </default>
+
+  <worldbody>
+    <body name="arg2f_base_link" childclass="2f85">
+      <inertial pos="8.625e-08 -4.6583e-06 0.03145" mass="0.22652"
+        fullinertia="0.00020005 0.00017832 0.00013478 -4.2442e-10 -2.9069e-10 -3.4402e-08"/>
+      <geom class="visual" mesh="base_visual" material="black"/>
+      <geom class="collision" mesh="base_collision"/>
+      <site name="pinch" pos="0 0 0.145" type="sphere" group="5"
+        rgba="0.9 0.9 0.9 1" size="0.005"/>
+
+      <!-- Left side: the official finger_joint is the single commanded joint. -->
+      <body name="left_outer_knuckle" pos="0 -0.0306011 0.054904" quat="0 0 0 1">
+        <inertial pos="-0.0002 0.0199435877845359 0.0292245259211331" mass="0.00853198276973456"
+          fullinertia="2.89328108496468e-06 1.86719750325683e-06 1.21905238907251e-06 -1.57935047237397e-19 -1.93980378593255e-19 -1.21858577871576e-06"/>
+        <joint name="finger_joint" type="hinge" pos="0 0 0" axis="1 0 0" range="0 0.8"/>
+        <geom class="visual" mesh="outer_knuckle_visual" material="metal"/>
+        <geom class="collision" mesh="outer_knuckle_collision"/>
+        <body name="left_outer_finger" pos="0 0.0315 -0.0041">
+          <inertial pos="0.00030115855001899 0.0373907951953854 -0.0208027427000385" mass="0.022614240507152"
+            fullinertia="1.52518312458174e-05 6.17694243867776e-06 1.16494917907219e-05 9.76583423954399e-10 -5.43838577022588e-10 6.78636130740228e-06"/>
+          <geom class="visual" mesh="outer_finger_visual" material="black"/>
+          <geom class="collision" mesh="outer_finger_collision"/>
+          <body name="left_inner_finger" pos="0 0.0061 0.0471">
+            <inertial pos="0.0003 0.0160078233491243 -0.0136945669206257" mass="0.0104003125914103"
+              fullinertia="2.71909453810972e-06 7.69100314106116e-07 2.30315190420171e-06 1.35402465472579e-21 -7.1817349065269e-22 6.74715432769696e-07"/>
+            <joint name="left_inner_finger_joint" type="hinge" pos="0 0 0"
+              axis="1 0 0" range="-0.8757 0"/>
+            <geom class="visual" mesh="inner_finger_visual" material="black"/>
+            <geom class="collision" mesh="inner_finger_collision"/>
+            <body name="left_inner_finger_pad" pos="0 -0.0220203446692936 0.03242">
+              <geom type="box" size="0.011 0.003175 0.01875" class="visual" material="pad"/>
+              <geom size="0.011 0.003175 0.01875" class="pad_collision"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="left_inner_knuckle" pos="0 -0.0127 0.06142" quat="0 0 0 1">
+        <inertial pos="0.000123011831763771 0.0507850843201817 0.00103968640075166" mass="0.0271177346495152"
+          fullinertia="2.61910379223783e-05 2.8270243746167e-06 2.83695868220296e-05 -2.43616858946494e-07 -6.37789906117123e-09 -5.37200748039765e-07"/>
+        <joint name="left_inner_knuckle_joint" type="hinge" pos="0 0 0"
+          axis="1 0 0" range="0 0.8757"/>
+        <geom class="visual" mesh="inner_knuckle_visual" material="black"/>
+        <geom class="collision" mesh="inner_knuckle_collision"/>
+      </body>
+
+      <!-- Right side mirrors the Xacro through its joint-frame transforms. -->
+      <body name="right_outer_knuckle" pos="0 0.0306011 0.054904">
+        <inertial pos="-0.0002 0.0199435877845359 0.0292245259211331" mass="0.00853198276973456"
+          fullinertia="2.89328108496468e-06 1.86719750325683e-06 1.21905238907251e-06 -1.57935047237397e-19 -1.93980378593255e-19 -1.21858577871576e-06"/>
+        <joint name="right_outer_knuckle_joint" type="hinge" pos="0 0 0"
+          axis="1 0 0" range="0 0.81"/>
+        <geom class="visual" mesh="outer_knuckle_visual" material="metal"/>
+        <geom class="collision" mesh="outer_knuckle_collision"/>
+        <body name="right_outer_finger" pos="0 0.0315 -0.0041">
+          <inertial pos="0.00030115855001899 0.0373907951953854 -0.0208027427000385" mass="0.022614240507152"
+            fullinertia="1.52518312458174e-05 6.17694243867776e-06 1.16494917907219e-05 9.76583423954399e-10 -5.43838577022588e-10 6.78636130740228e-06"/>
+          <geom class="visual" mesh="outer_finger_visual" material="black"/>
+          <geom class="collision" mesh="outer_finger_collision"/>
+          <body name="right_inner_finger" pos="0 0.0061 0.0471">
+            <inertial pos="0.0003 0.0160078233491243 -0.0136945669206257" mass="0.0104003125914103"
+              fullinertia="2.71909453810972e-06 7.69100314106116e-07 2.30315190420171e-06 1.35402465472579e-21 -7.1817349065269e-22 6.74715432769696e-07"/>
+            <joint name="right_inner_finger_joint" type="hinge" pos="0 0 0"
+              axis="1 0 0" range="-0.8757 0"/>
+            <geom class="visual" mesh="inner_finger_visual" material="black"/>
+            <geom class="collision" mesh="inner_finger_collision"/>
+            <body name="right_inner_finger_pad" pos="0 -0.0220203446692936 0.03242">
+              <geom type="box" size="0.011 0.003175 0.01875" class="visual" material="pad"/>
+              <geom size="0.011 0.003175 0.01875" class="pad_collision"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="right_inner_knuckle" pos="0 0.0127 0.06142">
+        <inertial pos="0.000123011831763771 0.0507850843201817 0.00103968640075166" mass="0.0271177346495152"
+          fullinertia="2.61910379223783e-05 2.8270243746167e-06 2.83695868220296e-05 -2.43616858946494e-07 -6.37789906117123e-09 -5.37200748039765e-07"/>
+        <joint name="right_inner_knuckle_joint" type="hinge" pos="0 0 0"
+          axis="1 0 0" range="0 0.8757"/>
+        <geom class="visual" mesh="inner_knuckle_visual" material="black"/>
+        <geom class="collision" mesh="inner_knuckle_collision"/>
+      </body>
+    </body>
+  </worldbody>
+
+  <contact>
+    <exclude body1="arg2f_base_link" body2="left_outer_knuckle"/>
+    <exclude body1="arg2f_base_link" body2="right_outer_knuckle"/>
+    <exclude body1="arg2f_base_link" body2="left_inner_knuckle"/>
+    <exclude body1="arg2f_base_link" body2="right_inner_knuckle"/>
+    <exclude body1="left_inner_knuckle" body2="left_outer_finger"/>
+    <exclude body1="right_inner_knuckle" body2="right_outer_finger"/>
+    <exclude body1="left_inner_knuckle" body2="left_inner_finger"/>
+    <exclude body1="right_inner_knuckle" body2="right_inner_finger"/>
+  </contact>
+
+  <!--
+    Apply the actuator force to all six official mimic joints.  The signed
+    coefficients normalize the tendon length to the commanded finger angle,
+    while the equality constraints below keep the kinematics exact.
+  -->
+  <tendon>
+    <fixed name="finger_coupling">
+      <joint joint="finger_joint" coef="0.1666666667"/>
+      <joint joint="left_inner_finger_joint" coef="-0.1666666667"/>
+      <joint joint="left_inner_knuckle_joint" coef="0.1666666667"/>
+      <joint joint="right_outer_knuckle_joint" coef="0.1666666667"/>
+      <joint joint="right_inner_finger_joint" coef="-0.1666666667"/>
+      <joint joint="right_inner_knuckle_joint" coef="0.1666666667"/>
+    </fixed>
+  </tendon>
+
+  <equality>
+    <joint name="left_inner_finger_mimic" joint1="left_inner_finger_joint" joint2="finger_joint"
+      polycoef="0 -1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1"/>
+    <joint name="left_inner_knuckle_mimic" joint1="left_inner_knuckle_joint" joint2="finger_joint"
+      polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1"/>
+    <joint name="right_outer_knuckle_mimic" joint1="right_outer_knuckle_joint" joint2="finger_joint"
+      polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1"/>
+    <joint name="right_inner_finger_mimic" joint1="right_inner_finger_joint" joint2="finger_joint"
+      polycoef="0 -1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1"/>
+    <joint name="right_inner_knuckle_mimic" joint1="right_inner_knuckle_joint" joint2="finger_joint"
+      polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1"/>
+  </equality>
+
+  <actuator>
+    <general class="2f85" name="fingers_actuator" tendon="finger_coupling"
+      forcerange="-30 30" ctrlrange="0 255" gainprm="0.3137255 0 0"
+      biasprm="0 -100 -10"/>
+  </actuator>
+</mujoco>

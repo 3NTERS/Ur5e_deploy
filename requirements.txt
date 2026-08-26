@@ -1,0 +1,7 @@
+numpy>=1.20,<2
+mujoco==2.3.6
+onnx==1.13.1
+onnxruntime-gpu==1.14.1
+PyYAML>=5.4,<7
+trimesh==3.23.5
+pycollada==0.4.1
