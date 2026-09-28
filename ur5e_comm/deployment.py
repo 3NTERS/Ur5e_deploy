@@ -8,6 +8,8 @@ from time import monotonic, sleep
 
 import numpy as np
 
+from .geometry import average_transforms, invert_transform, rotation_angle_degrees, tcp_pose_to_transform
+
 
 @dataclass(frozen=True)
 class EpisodeResult:
@@ -41,6 +43,11 @@ class DeploymentSession:
         execute=False,
         policy_period=0.01667,
         max_policy_lag=0.05,
+        max_detection_sync_interval=0.25,
+        max_detection_translation_delta=0.002,
+        max_detection_rotation_delta_deg=0.5,
+        max_detection_linear_speed=0.005,
+        max_detection_angular_speed=0.02,
         verdict_provider=request_verdict,
     ):
         self.camera = camera
@@ -54,6 +61,11 @@ class DeploymentSession:
         self.execute = bool(execute)
         self.policy_period = float(policy_period)
         self.max_policy_lag = float(max_policy_lag)
+        self.max_detection_sync_interval = float(max_detection_sync_interval)
+        self.max_detection_translation_delta = float(max_detection_translation_delta)
+        self.max_detection_rotation_delta_deg = float(max_detection_rotation_delta_deg)
+        self.max_detection_linear_speed = float(max_detection_linear_speed)
+        self.max_detection_angular_speed = float(max_detection_angular_speed)
         self.verdict_provider = verdict_provider
         if policy.observation_dim != observation_builder.observation_dim:
             raise ValueError(
@@ -68,11 +80,58 @@ class DeploymentSession:
                 )
             )
 
+    def _lock_initial_object(self, attempts):
+        errors = []
+        for _ in range(int(attempts)):
+            before = self.robot.read()
+            self.safety_monitor.check_state(before)
+            frame = self.camera.read()
+            after = self.robot.read()
+            self.safety_monitor.check_state(after)
+            before_transform = tcp_pose_to_transform(before.tcp_pose)
+            after_transform = tcp_pose_to_transform(after.tcp_pose)
+            relative = invert_transform(before_transform).dot(after_transform)
+            elapsed = after.timestamp - before.timestamp
+            translation_delta = float(np.linalg.norm(relative[:3, 3]))
+            rotation_delta = rotation_angle_degrees(relative)
+            linear_speed = max(
+                float(np.linalg.norm(before.tcp_speed[:3])),
+                float(np.linalg.norm(after.tcp_speed[:3])),
+            )
+            angular_speed = max(
+                float(np.linalg.norm(before.tcp_speed[3:])),
+                float(np.linalg.norm(after.tcp_speed[3:])),
+            )
+            unstable = (
+                elapsed > self.max_detection_sync_interval
+                or translation_delta > self.max_detection_translation_delta
+                or rotation_delta > self.max_detection_rotation_delta_deg
+                or linear_speed > self.max_detection_linear_speed
+                or angular_speed > self.max_detection_angular_speed
+            )
+            if unstable:
+                errors.append(
+                    "unstable TCP during image: dt={:.3f}s, d={:.4f}m, r={:.2f}deg".format(
+                        elapsed, translation_delta, rotation_delta
+                    )
+                )
+                continue
+            if not before.timestamp <= frame.timestamp <= after.timestamp:
+                errors.append("camera timestamp was not bracketed by RTDE samples")
+                continue
+            base_to_tcp = average_transforms([before_transform, after_transform])
+            try:
+                return self.locator.locate(frame, base_to_tcp), after
+            except RuntimeError as error:
+                errors.append(str(error))
+        detail = errors[-1] if errors else "no attempts were made"
+        raise RuntimeError("Failed to lock initial object after {} frames: {}".format(attempts, detail))
+
     def run_episode(self, steps=600, detection_attempts=30):
-        detection = self.locator.locate_from_camera(self.camera, attempts=detection_attempts)
+        if int(detection_attempts) <= 0:
+            raise ValueError("detection attempts must be positive")
+        detection, initial_snapshot = self._lock_initial_object(detection_attempts)
         self.safety_monitor.check_initial_object(detection.position_base)
-        initial_snapshot = self.robot.read()
-        self.safety_monitor.check_state(initial_snapshot)
         self.policy.reset()
         self.observation_builder.begin_episode(detection.position_base)
         self.action_mapper.reset(initial_snapshot)
@@ -158,6 +217,7 @@ class DeploymentSession:
             {
                 "initial_object_position_camera": detection.position_camera,
                 "initial_object_position_base": detection.position_base,
+                "initial_base_to_camera": detection.base_to_camera,
                 "detection_center_pixel": detection.center_pixel,
                 "detection_confidence": np.asarray(detection.confidence),
                 "verdict": np.asarray(verdict),
@@ -181,6 +241,7 @@ class DeploymentSession:
                 "depth_m": detection.depth_m,
                 "position_camera": detection.position_camera.tolist(),
                 "position_base": detection.position_base.tolist(),
+                "base_to_camera": detection.base_to_camera.tolist(),
             },
         }
         with (self.output_directory / "episodes.jsonl").open("a", encoding="utf-8") as stream:

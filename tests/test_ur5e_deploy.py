@@ -11,11 +11,19 @@ from ur5e_comm.deployment import DeploymentSession
 from ur5e_comm.geometry import (
     CameraIntrinsics,
     average_transforms,
+    calibrate_eye_on_hand,
     deproject_pixel,
+    eye_on_hand_residuals,
+    estimate_checkerboard_pose,
     estimate_eye_on_base,
     invert_transform,
+    load_eye_on_hand,
     make_transform,
+    robust_calibrate_eye_on_hand,
+    save_eye_on_hand,
+    tcp_pose_to_transform,
     transform_point,
+    transform_spans,
 )
 from ur5e_comm.observation import (
     ProjectedRobotState,
@@ -71,6 +79,35 @@ class TestGeometry(unittest.TestCase):
         transformed = transform_point(transform, point)
         np.testing.assert_allclose(transform_point(invert_transform(transform), transformed), point)
 
+    def test_inverse_brown_conrady_deprojection(self):
+        coefficients = (0.1, -0.02, 0.003, -0.004, 0.005)
+        intrinsics = CameraIntrinsics(
+            500.0,
+            510.0,
+            320.0,
+            240.0,
+            640,
+            480,
+            coefficients,
+            "inverse_brown_conrady",
+        )
+        pixel = (420.0, 180.0)
+        x = (pixel[0] - intrinsics.cx) / intrinsics.fx
+        y = (pixel[1] - intrinsics.cy) / intrinsics.fy
+        radius2 = x * x + y * y
+        radial = 1.0 + coefficients[0] * radius2 + coefficients[1] * radius2 ** 2 + coefficients[4] * radius2 ** 3
+        expected_x = x * radial + 2.0 * coefficients[2] * x * y + coefficients[3] * (
+            radius2 + 2.0 * x * x
+        )
+        expected_y = y * radial + 2.0 * coefficients[3] * x * y + coefficients[2] * (
+            radius2 + 2.0 * y * y
+        )
+        np.testing.assert_allclose(
+            deproject_pixel(pixel, 0.75, intrinsics),
+            [expected_x * 0.75, expected_y * 0.75, 0.75],
+            atol=1e-12,
+        )
+
     def test_average_transforms(self):
         first, second = np.eye(4), np.eye(4)
         first[:3, 3] = [0.0, 1.0, 2.0]
@@ -107,6 +144,112 @@ class TestGeometry(unittest.TestCase):
         np.testing.assert_allclose(actual, expected, atol=1e-8)
         self.assertLess(rms, 1e-8)
 
+    def test_ur_tcp_axis_angle_conversion(self):
+        pose = np.array([0.4, -0.2, 0.3, 0.0, 0.0, np.pi / 2.0])
+        transform = tcp_pose_to_transform(pose)
+        np.testing.assert_allclose(transform[:3, 3], pose[:3])
+        np.testing.assert_allclose(
+            transform[:3, :3],
+            [[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+            atol=1e-8,
+        )
+
+    def test_eye_on_hand_recovery_and_file_contract(self):
+        try:
+            import cv2
+        except ImportError:
+            self.skipTest("opencv is not installed")
+
+        def transform(rotation_vector, translation):
+            return make_transform(cv2.Rodrigues(np.asarray(rotation_vector, dtype=np.float64))[0], translation)
+
+        expected = transform([0.12, -0.08, 0.05], [0.04, -0.03, 0.11])
+        base_to_board = transform([0.05, 0.02, -0.03], [0.62, 0.08, 0.14])
+        base_to_tcp = []
+        for index in range(12):
+            base_to_tcp.append(transform(
+                [
+                    0.15 * np.sin(index),
+                    0.18 * np.cos(index * 0.7),
+                    0.12 * np.sin(index * 0.4),
+                ],
+                [
+                    0.35 + 0.04 * np.sin(index * 0.8),
+                    -0.2 + 0.05 * np.cos(index * 0.5),
+                    0.3 + 0.03 * np.sin(index * 0.3),
+                ],
+            ))
+        camera_to_board = [
+            invert_transform(base_pose.dot(expected)).dot(base_to_board)
+            for base_pose in base_to_tcp
+        ]
+        actual = calibrate_eye_on_hand(base_to_tcp, camera_to_board, "park")
+        np.testing.assert_allclose(actual, expected, atol=1e-7)
+        _, translation_error, rotation_error = eye_on_hand_residuals(
+            base_to_tcp, camera_to_board, actual
+        )
+        self.assertLess(float(translation_error.max()), 1e-8)
+        self.assertLess(float(rotation_error.max()), 1e-4)
+        translation_span, rotation_span = transform_spans(base_to_tcp)
+        self.assertGreater(translation_span, 0.05)
+        self.assertGreater(rotation_span, 10.0)
+
+        refined, inliers, _, _, _ = robust_calibrate_eye_on_hand(
+            base_to_tcp, camera_to_board, minimum_inliers=10
+        )
+        self.assertTrue(inliers.all())
+        np.testing.assert_allclose(refined, expected, atol=1e-7)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "eye_on_hand.yaml"
+            board = {
+                "model": "DFVision Q12-240-15",
+                "columns": 11,
+                "rows": 8,
+                "square_size_m": 0.015,
+            }
+            save_eye_on_hand(
+                path,
+                actual,
+                {
+                    "sample_count": 12,
+                    "checkerboard": board,
+                    "camera": {"model": "Intel RealSense D435I"},
+                },
+            )
+            np.testing.assert_allclose(load_eye_on_hand(path), expected, atol=1e-7)
+            np.testing.assert_allclose(
+                load_eye_on_hand(path, board, "D435i"), expected, atol=1e-7
+            )
+            with self.assertRaisesRegex(ValueError, "square_size_m"):
+                load_eye_on_hand(path, dict(board, square_size_m=0.025), "D435i")
+
+    def test_checkerboard_detection_and_pose(self):
+        try:
+            import cv2
+        except ImportError:
+            self.skipTest("opencv is not installed")
+        image = np.full((480, 640, 3), 255, dtype=np.uint8)
+        origin_x, origin_y, square_pixels = 140, 100, 30
+        for row in range(9):
+            for column in range(12):
+                if (row + column) % 2 == 0:
+                    top_left = (
+                        origin_x + column * square_pixels,
+                        origin_y + row * square_pixels,
+                    )
+                    bottom_right = (
+                        top_left[0] + square_pixels,
+                        top_left[1] + square_pixels,
+                    )
+                    cv2.rectangle(image, top_left, bottom_right, (0, 0, 0), -1)
+        intrinsics = CameraIntrinsics(600.0, 600.0, 320.0, 240.0, 640, 480)
+        camera_to_board, rms, corners = estimate_checkerboard_pose(
+            image, intrinsics, 11, 8, 0.015
+        )
+        self.assertEqual(corners.shape, (88, 2))
+        self.assertLess(rms, 0.2)
+        self.assertGreater(camera_to_board[2, 3], 0.0)
+
 
 class TestPinnedUltralyticsCompatibility(unittest.TestCase):
     def test_locator_uses_model_names_when_old_results_have_no_names(self):
@@ -131,9 +274,11 @@ class TestPinnedUltralyticsCompatibility(unittest.TestCase):
                 return [types.SimpleNamespace(boxes=FakeBoxes())]
 
         module = types.SimpleNamespace(YOLO=FakeYOLO)
+        tcp_to_camera = np.eye(4)
+        tcp_to_camera[:3, 3] = [0.1, 0.0, 0.0]
         with mock.patch.dict("sys.modules", {"ultralytics": module}):
             locator = YoloInitialObjectLocator(
-                "weights.pt", np.eye(4), target_class="object", depth_radius=0
+                "weights.pt", tcp_to_camera, target_class="object", depth_radius=0
             )
         frame = RGBDFrame(
             color_bgr=np.zeros((5, 5, 3), dtype=np.uint8),
@@ -141,10 +286,13 @@ class TestPinnedUltralyticsCompatibility(unittest.TestCase):
             intrinsics=CameraIntrinsics(1.0, 1.0, 2.0, 2.0, 5, 5),
             timestamp=1.0,
         )
-        detection = locator.locate(frame)
+        base_to_tcp = np.eye(4)
+        base_to_tcp[:3, 3] = [0.2, 0.0, 0.0]
+        detection = locator.locate(frame, base_to_tcp)
         self.assertEqual(detection.class_name, "object")
         np.testing.assert_allclose(detection.center_pixel, [2.0, 2.0])
-        np.testing.assert_allclose(detection.position_base, [0.0, 0.0, 1.0])
+        np.testing.assert_allclose(detection.position_base, [0.3, 0.0, 1.0])
+        np.testing.assert_allclose(detection.base_to_camera[:3, 3], [0.3, 0.0, 0.0])
 
 
 class TestPolicyContract(unittest.TestCase):
@@ -192,11 +340,17 @@ class TestPolicyContract(unittest.TestCase):
 
 
 class FakeCamera:
-    pass
+    def read(self):
+        return RGBDFrame(
+            color_bgr=np.zeros((5, 5, 3), dtype=np.uint8),
+            depth_m=np.ones((5, 5), dtype=np.float32),
+            intrinsics=CameraIntrinsics(1.0, 1.0, 2.0, 2.0, 5, 5),
+            timestamp=monotonic(),
+        )
 
 
 class FakeLocator:
-    def locate_from_camera(self, camera, attempts):
+    def locate(self, frame, base_to_tcp):
         return ObjectDetection(
             np.array([0.0, 0.0, 0.5]),
             np.array([0.6, 0.0, 0.2]),
@@ -205,7 +359,7 @@ class FakeLocator:
             0.9,
             0,
             "object",
-            monotonic(),
+            frame.timestamp,
         )
 
 

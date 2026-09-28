@@ -147,7 +147,9 @@ sim2sim 和低速小步测试。
 TCP 速度、电流和目标力矩均从 RTDE 读取并写入每回合轨迹；训练 observation 所需的
 掌心、指尖位姿和速度通过仓库内同一套 UR5e+2F85 MJCF 正运动学重建。
 
-按需求，YOLO+深度相机只在每回合开始时取得一次物体中心。之后物体位置和姿态固定，
+按需求，YOLO+深度相机只在每回合开始时取得一次物体中心。RealSense 采用 eye-on-hand
+刚性安装，运行时用 RTDE 的当前 `T_base_tcp` 与标定的 `T_tcp_camera` 组合得到
+`T_base_camera`。之后物体位置和姿态固定，
 物体线速度、角速度、lifted、在线 reward 均填 0；LSTM 状态仍逐步传递。这个行为与
 训练时可持续读取仿真物体状态不同，属于明确的 sim-to-real 分布偏移，必须在
 sim2sim/离线回放中单独验证成功率。
@@ -248,19 +250,31 @@ conda run --no-capture-output -n rlgpu \
 输出为 `resources/models/ur5e_robotiq/policy.onnx`，同时更新 checkpoint/ONNX 哈希和
 验证误差。部署入口还会再次校验 ONNX 的 69/7 维接口与关节顺序。
 
-### 4. 配置与 eye-on-base 标定
+### 4. 配置与 eye-on-hand 标定
 
 编辑 `resources/config/ur5e_deploy.yaml` 中的机器人 IP、目标桶中心、安全关节/工作空间、
-YOLO 权重和目标类别。测量二维码中心在 UR base 下的位姿，写入
-`calibration.base_to_qr`，再采集标定：
+   YOLO 权重和目标类别。相机为 Intel RealSense D435i，必须刚性安装在当前 UR TCP 上；在工作空间
+   固定 DFVision `Q12-240-15` 棋盘格。厂家规格是 `12×9` 个方格、单格 `15 mm`，因此 OpenCV
+   配置为 `11×8` 内角点（图案区 `180×135 mm`，整板 `240×200 mm`）。运行脚本后，用示教器手动改变相机位置与朝向，
+每次完全静止后按回车采集：
 
 ```bash
 conda run --no-capture-output -n rlgpu \
-  python scripts/calibrate_eye_on_base.py
+  python scripts/calibrate_eye_on_hand.py
 ```
 
-标定文件保存的 `T_base_camera` 将相机光学坐标系中的米制点变换到 UR base 坐标系。
-运行时使用 YOLO bbox 中心附近有效深度的中位数，并结合对齐后的彩色相机内参完成反投影。
+默认采集 20 个姿态，至少保留 12 个内点。姿态应覆盖三个旋转轴，TCP 平移跨度至少
+`0.10 m`、旋转跨度至少 `30°`；不要只在一个平面平移。脚本拒绝运动中、重投影误差过大
+或与已有样本过近的样本，并在 `resources/calibration/sessions/` 保存角点图、原始变换和
+残差。输出 `eye_on_hand.yaml` 中的 `T_tcp_camera` 将相机光学坐标系转换到标定时的 UR TCP。
+修改示教器的 active TCP 或相机安装后必须重新标定。
+
+普通棋盘格存在 180° 朝向歧义；采样时保持同一物理角作为图像左上方向，不要让棋盘在
+画面中翻转 180°。若无法保证，应改用带 ID 的 ChArUco 标定板。
+
+部署时会在每回合检测前后各读取一次 RTDE TCP pose，只有相机帧被两个静止姿态夹住时
+才接受检测。YOLO bbox 中心结合对齐深度和相机内参反投影，再通过
+`T_base_tcp · T_tcp_camera` 转到 UR base。
 
 ### 5. 只读 dry-run
 
@@ -302,7 +316,7 @@ conda run --no-capture-output -n rlgpu \
 ### 尚需现场提供/验收
 
 - 经仿真选择并导出的 UR5e 69→7 ONNX（当前仓库没有该文件）。
-- YOLO 权重、目标 class、RealSense 序列号，以及现场生成的 `eye_on_base.yaml`。
+- YOLO 权重、目标 class、RealSense 序列号，以及现场生成的 `eye_on_hand.yaml`。
 - 真实桶中心、物体 scale/初始姿态约定和保守的关节/笛卡尔安全边界。
 - UR 控制器启用 External Control/Remote 模式、63352 端口上的 Robotiq URCap 服务。
 - 使用同一 ONNX 的 UR5e sim2sim 轨迹对齐；通过后再做只读 dry-run 和低速实机测试。

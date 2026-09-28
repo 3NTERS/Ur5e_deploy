@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from time import monotonic
 
 import numpy as np
@@ -26,12 +26,13 @@ class ObjectDetection:
     class_id: int
     class_name: str
     timestamp: float
+    base_to_camera: np.ndarray = field(default_factory=lambda: np.eye(4, dtype=np.float64))
 
 
 class RealSenseCamera:
     """Aligned colour/depth source. Import is lazy so offline tests stay light."""
 
-    def __init__(self, width=640, height=480, fps=30, serial=None):
+    def __init__(self, width=640, height=480, fps=30, serial=None, expected_model=None):
         try:
             import pyrealsense2 as rs
         except ImportError as error:
@@ -43,11 +44,22 @@ class RealSenseCamera:
             config.enable_device(str(serial))
         config.enable_stream(rs.stream.color, int(width), int(height), rs.format.bgr8, int(fps))
         config.enable_stream(rs.stream.depth, int(width), int(height), rs.format.z16, int(fps))
+        self.closed = True
         profile = self.pipeline.start(config)
-        self.align = rs.align(rs.stream.color)
-        sensor = profile.get_device().first_depth_sensor()
-        self.depth_scale = float(sensor.get_depth_scale())
         self.closed = False
+        device = profile.get_device()
+        self.device_name = str(device.get_info(rs.camera_info.name))
+        self.serial = str(device.get_info(rs.camera_info.serial_number))
+        if expected_model and str(expected_model).lower() not in self.device_name.lower():
+            self.close()
+            raise RuntimeError(
+                "Expected RealSense {!r}, connected device is {!r}".format(
+                    expected_model, self.device_name
+                )
+            )
+        self.align = rs.align(rs.stream.color)
+        sensor = device.first_depth_sensor()
+        self.depth_scale = float(sensor.get_depth_scale())
 
     def read(self, timeout_ms=2000) -> RGBDFrame:
         if self.closed:
@@ -67,6 +79,7 @@ class RealSenseCamera:
             intr.width,
             intr.height,
             tuple(float(value) for value in intr.coeffs),
+            str(intr.model).split(".")[-1],
         )
         return RGBDFrame(
             color_bgr=np.asanyarray(color.get_data()),
@@ -107,7 +120,7 @@ class YoloInitialObjectLocator:
     def __init__(
         self,
         weights,
-        base_to_camera,
+        tcp_to_camera,
         target_class=None,
         confidence=0.5,
         depth_radius=3,
@@ -120,7 +133,7 @@ class YoloInitialObjectLocator:
         except ImportError as error:
             raise RuntimeError("Install ultralytics to use YOLO object detection") from error
         self.model = YOLO(str(weights))
-        self.base_to_camera = as_transform(base_to_camera, "base_to_camera")
+        self.tcp_to_camera = as_transform(tcp_to_camera, "tcp_to_camera")
         self.target_class = target_class
         self.confidence = float(confidence)
         self.depth_radius = int(depth_radius)
@@ -128,7 +141,7 @@ class YoloInitialObjectLocator:
         self.depth_max = float(depth_max)
         self.device = device
 
-    def locate(self, frame: RGBDFrame) -> ObjectDetection:
+    def locate(self, frame: RGBDFrame, base_to_tcp: np.ndarray) -> ObjectDetection:
         results = self.model.predict(
             source=frame.color_bgr,
             conf=self.confidence,
@@ -165,7 +178,8 @@ class YoloInitialObjectLocator:
             self.depth_max,
         )
         camera_point = deproject_pixel((u, v), depth, frame.intrinsics)
-        base_point = transform_point(self.base_to_camera, camera_point)
+        base_to_camera = as_transform(base_to_tcp, "base_to_tcp").dot(self.tcp_to_camera)
+        base_point = transform_point(base_to_camera, camera_point)
         return ObjectDetection(
             position_camera=camera_point,
             position_base=base_point,
@@ -175,15 +189,16 @@ class YoloInitialObjectLocator:
             class_id=class_id,
             class_name=class_name,
             timestamp=frame.timestamp,
+            base_to_camera=base_to_camera,
         )
 
-    def locate_from_camera(self, camera, attempts=30) -> ObjectDetection:
+    def locate_from_camera(self, camera, base_to_tcp, attempts=30) -> ObjectDetection:
         if int(attempts) <= 0:
             raise ValueError("detection attempts must be positive")
         errors = []
         for _ in range(int(attempts)):
             try:
-                return self.locate(camera.read())
+                return self.locate(camera.read(), base_to_tcp)
             except RuntimeError as error:
                 errors.append(str(error))
         raise RuntimeError("Failed to lock initial object after {} frames: {}".format(attempts, errors[-1]))

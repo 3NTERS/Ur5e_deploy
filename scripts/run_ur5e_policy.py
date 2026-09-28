@@ -3,12 +3,18 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
 
 import yaml
 
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from onnx_deploy.policy_runner import PolicyRunner
 from ur5e_comm.deployment import DeploymentSession
-from ur5e_comm.geometry import load_eye_on_base
+from ur5e_comm.geometry import load_eye_on_hand
 from ur5e_comm.observation import (
     JOINT_ORDER,
     MujocoStateProjector,
@@ -18,9 +24,6 @@ from ur5e_comm.observation import (
 )
 from ur5e_comm.robot import UR5eHardware
 from ur5e_comm.vision import RealSenseCamera, YoloInitialObjectLocator
-
-
-ROOT = Path(__file__).resolve().parents[1]
 
 
 def resolve_path(value):
@@ -64,10 +67,14 @@ def main():
     vision_cfg = config["vision"]
     robot_cfg = config["robot"]
     task_cfg = config["task"]
-    base_to_camera = load_eye_on_base(resolve_path(camera_cfg["calibration"]))
+    tcp_to_camera = load_eye_on_hand(
+        resolve_path(camera_cfg["calibration"]),
+        config["calibration"]["checkerboard"],
+        camera_cfg.get("model"),
+    )
     locator = YoloInitialObjectLocator(
         resolve_path(vision_cfg["weights"]),
-        base_to_camera,
+        tcp_to_camera,
         vision_cfg.get("target_class"),
         vision_cfg["confidence"],
         vision_cfg["depth_radius"],
@@ -107,7 +114,11 @@ def main():
     output = resolve_path(config["output"]["directory"])
     print("模式：{}；每回合只在开始时锁定一次物体位置。".format("实机执行" if args.execute else "只读 dry-run"))
     with RealSenseCamera(
-        camera_cfg["width"], camera_cfg["height"], camera_cfg["fps"], camera_cfg.get("serial")
+        camera_cfg["width"],
+        camera_cfg["height"],
+        camera_cfg["fps"],
+        camera_cfg.get("serial"),
+        camera_cfg.get("model"),
     ) as camera, UR5eHardware(
         robot_cfg["host"],
         robot_cfg["gripper_port"],
@@ -133,6 +144,11 @@ def main():
             args.execute,
             period,
             safety_cfg["max_policy_lag"],
+            camera_cfg["max_detection_sync_interval_s"],
+            camera_cfg["max_detection_translation_delta_m"],
+            camera_cfg["max_detection_rotation_delta_deg"],
+            camera_cfg["max_detection_linear_speed_m_s"],
+            camera_cfg["max_detection_angular_speed_rad_s"],
         )
         for index in range(args.episodes):
             print("开始回合 {}/{}".format(index + 1, args.episodes))

@@ -20,11 +20,19 @@ robot:
   gripper_force: 100
 
 camera:
+  # The connected device name must contain this value (case-insensitive).
+  model: D435i
   serial: null
   width: 640
   height: 480
   fps: 30
-  calibration: resources/calibration/eye_on_base.yaml
+  # Eye-on-hand: the RealSense is rigidly attached to the currently configured UR TCP.
+  calibration: resources/calibration/eye_on_hand.yaml
+  max_detection_sync_interval_s: 0.25
+  max_detection_translation_delta_m: 0.002
+  max_detection_rotation_delta_deg: 0.5
+  max_detection_linear_speed_m_s: 0.005
+  max_detection_angular_speed_rad_s: 0.02
 
 vision:
   weights: resources/models/vision/object_yolo.pt
@@ -64,12 +72,28 @@ output:
   directory: resources/trajectories/ur5e_real
 
 calibration:
-  qr_size_m: 0.080
-  samples: 30
-  max_reprojection_error_px: 1.5
-  # Pose of the QR centre in the UR base frame. Replace after physical measurement.
-  base_to_qr:
-    - [1.0, 0.0, 0.0, 0.50]
-    - [0.0, 1.0, 0.0, 0.00]
-    - [0.0, 0.0, 1.0, 0.00]
-    - [0.0, 0.0, 0.0, 1.00]
+  type: eye_on_hand
+  method: park
+  samples: 20
+  minimum_inliers: 12
+  session_directory: resources/calibration/sessions
+  checkerboard:
+    model: DFVision Q12-240-15
+    # This target has 12x9 printed squares, hence 11x8 OpenCV inner corners.
+    columns: 11
+    rows: 8
+    square_size_m: 0.015
+    pattern_size_m: [0.180, 0.135]
+    overall_size_m: [0.240, 0.200]
+  max_reprojection_error_px: 1.0
+  max_capture_interval_s: 0.25
+  max_capture_translation_delta_m: 0.002
+  max_capture_rotation_delta_deg: 0.5
+  max_tcp_linear_speed_m_s: 0.005
+  max_tcp_angular_speed_rad_s: 0.02
+  minimum_sample_translation_m: 0.020
+  minimum_sample_rotation_deg: 8.0
+  minimum_translation_span_m: 0.10
+  minimum_rotation_span_deg: 30.0
+  max_board_translation_error_m: 0.010
+  max_board_rotation_error_deg: 2.0

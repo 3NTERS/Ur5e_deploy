@@ -7,11 +7,18 @@ import argparse
 import importlib
 import os
 from pathlib import Path
+import sys
 
 import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from ur5e_comm.geometry import load_eye_on_hand
+
+
 os.environ.setdefault("MPLCONFIGDIR", "/tmp/ur5e-deploy-matplotlib")
 EXPECTED_HARDWARE_PACKAGES = {
     "ur-rtde": ("1.6.5", ("rtde_control", "rtde_receive")),
@@ -60,7 +67,7 @@ def main():
         "UR5e ONNX policy": config["policy"]["model"],
         "policy metadata": config["policy"]["metadata"],
         "YOLO weights": config["vision"]["weights"],
-        "eye-on-base calibration": config["camera"]["calibration"],
+        "eye-on-hand calibration": config["camera"]["calibration"],
         "kinematic MJCF": "resources/assets/robots/ur5e_robotiq_2f85/ur5e_robotiq_2f85.xml",
     }
     for label, value in required_files.items():
@@ -106,6 +113,38 @@ def main():
         except Exception as error:
             report("FAIL", "YOLO class contract", str(error))
             failures.append("YOLO class contract")
+
+    calibration_path = resolve_path(config["camera"]["calibration"])
+    if calibration_path.is_file():
+        try:
+            load_eye_on_hand(
+                calibration_path,
+                config["calibration"]["checkerboard"],
+                config["camera"].get("model"),
+            )
+            report("PASS", "eye-on-hand convention", "T_tcp_camera, board and camera match")
+        except Exception as error:
+            report("FAIL", "eye-on-hand convention", str(error))
+            failures.append("eye-on-hand convention")
+
+    board = config["calibration"]["checkerboard"]
+    board_valid = (
+        board.get("model") == "DFVision Q12-240-15"
+        and int(board.get("columns", 0)) == 11
+        and int(board.get("rows", 0)) == 8
+        and abs(float(board.get("square_size_m", 0.0)) - 0.015) <= 1e-9
+    )
+    report(
+        "PASS" if board_valid else "FAIL",
+        "checkerboard contract",
+        "DFVision Q12-240-15: 11x8 inner corners, 15 mm squares",
+    )
+    if not board_valid:
+        failures.append("checkerboard contract")
+    camera_valid = "d435i" in str(config["camera"].get("model", "")).lower()
+    report("PASS" if camera_valid else "FAIL", "camera model contract", "RealSense D435i")
+    if not camera_valid:
+        failures.append("camera model contract")
 
     metadata_path = resolve_path(config["policy"]["metadata"])
     if metadata_path.is_file():
