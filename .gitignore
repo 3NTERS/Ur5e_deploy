@@ -11,3 +11,5 @@ resources/calibration/eye_on_base.yaml
 resources/calibration/eye_on_hand.yaml
 resources/calibration/sessions/
 resources/trajectories/ur5e_real/
+*.pt
+

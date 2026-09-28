@@ -1,4 +1,4 @@
-"""Validated single-class YOLO training and explicit deployment publishing."""
+"""Validated multi-class YOLO training and explicit deployment publishing."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ IMAGE_SUFFIXES = {".bmp", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"}
 class DatasetSpec:
     source: Path
     root: Path
+    class_names: tuple
     train_directory: Path
     val_directory: Path
     train_images: tuple
@@ -45,10 +46,10 @@ class TrainingOptions:
 
 def _normalise_names(names):
     if isinstance(names, list):
-        result = list(names)
+        result = [str(value).strip() for value in names]
     elif isinstance(names, dict):
         try:
-            indexed = {int(key): str(value) for key, value in names.items()}
+            indexed = {int(key): str(value).strip() for key, value in names.items()}
         except (TypeError, ValueError) as error:
             raise ValueError("dataset names keys must be integer class IDs") from error
         if sorted(indexed) != list(range(len(indexed))):
@@ -56,9 +57,13 @@ def _normalise_names(names):
         result = [indexed[index] for index in range(len(indexed))]
     else:
         raise ValueError("dataset names must be a list or mapping")
-    if result != ["object"]:
-        raise ValueError("dataset must contain exactly one class: 0: object")
-    return result
+    if not result:
+        raise ValueError("dataset must contain at least one class")
+    if any(not name for name in result):
+        raise ValueError("dataset class names must not be empty")
+    if len(set(result)) != len(result):
+        raise ValueError("dataset class names must be unique")
+    return tuple(result)
 
 
 def _split_directory(config, data_path, split):
@@ -93,7 +98,7 @@ def _label_directory(root, image_directory):
     return root.joinpath(*parts)
 
 
-def _validate_label(label_path):
+def _validate_label(label_path, class_count):
     rows = [line.strip() for line in label_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     if not rows:
         raise ValueError("label file is empty: {}".format(label_path))
@@ -106,8 +111,12 @@ def _validate_label(label_path):
             values = [float(value) for value in fields[1:]]
         except ValueError as error:
             raise ValueError("{}:{} contains a non-numeric value".format(label_path, line_number)) from error
-        if class_value != 0.0 or not class_value.is_integer():
-            raise ValueError("{}:{} class ID must be 0 (object)".format(label_path, line_number))
+        if not class_value.is_integer() or not 0 <= int(class_value) < class_count:
+            raise ValueError(
+                "{}:{} class ID must be an integer in [0, {}]".format(
+                    label_path, line_number, class_count - 1
+                )
+            )
         x_center, y_center, width, height = values
         if not (0.0 <= x_center <= 1.0 and 0.0 <= y_center <= 1.0):
             raise ValueError("{}:{} box centre must be normalized to [0, 1]".format(label_path, line_number))
@@ -119,7 +128,7 @@ def _validate_label(label_path):
             raise ValueError("{}:{} box extends outside the image".format(label_path, line_number))
 
 
-def _validate_split(root, directory, split):
+def _validate_split(root, directory, split, class_count):
     if not directory.is_dir():
         raise ValueError("{} image directory does not exist: {}".format(split, directory))
     images = tuple(sorted(path for path in directory.rglob("*") if path.suffix.lower() in IMAGE_SUFFIXES))
@@ -133,7 +142,7 @@ def _validate_split(root, directory, split):
         label = labels / relative
         if not label.is_file():
             raise ValueError("missing YOLO label for {}: {}".format(image, label))
-        _validate_label(label)
+        _validate_label(label, class_count)
     return images
 
 
@@ -145,17 +154,19 @@ def validate_dataset(data):
     config = yaml.safe_load(data_path.read_text(encoding="utf-8"))
     if not isinstance(config, dict):
         raise ValueError("dataset YAML must contain a mapping")
-    _normalise_names(config.get("names"))
+    class_names = _normalise_names(config.get("names"))
     train_root, train_directory = _split_directory(config, data_path, "train")
     val_root, val_directory = _split_directory(config, data_path, "val")
     if train_root != val_root:
         raise ValueError("train and val must share one dataset path")
-    train_images = _validate_split(train_root, train_directory, "train")
-    val_images = _validate_split(val_root, val_directory, "val")
+    train_images = _validate_split(train_root, train_directory, "train", len(class_names))
+    val_images = _validate_split(val_root, val_directory, "val", len(class_names))
     overlap = set(train_images).intersection(val_images)
     if overlap:
         raise ValueError("train and val contain the same image paths")
-    return DatasetSpec(data_path, train_root, train_directory, val_directory, train_images, val_images)
+    return DatasetSpec(
+        data_path, train_root, class_names, train_directory, val_directory, train_images, val_images
+    )
 
 
 def _relative_or_absolute(path, root):
@@ -174,7 +185,7 @@ def write_resolved_manifest(spec, project):
         "path": str(spec.root),
         "train": _relative_or_absolute(spec.train_directory, spec.root),
         "val": _relative_or_absolute(spec.val_directory, spec.root),
-        "names": {0: "object"},
+        "names": dict(enumerate(spec.class_names)),
     }
     digest = hashlib.sha256((str(spec.source) + yaml.safe_dump(payload, sort_keys=True)).encode("utf-8")).hexdigest()[:12]
     destination = manifest_directory / "{}-{}.yaml".format(spec.source.stem, digest)
@@ -211,14 +222,19 @@ def _prepare_ultralytics_cache(project):
 
 def _ensure_ascii_font():
     # Ultralytics 8.0.20 downloads Arial.ttf during dataset validation. The
-    # detector has one ASCII class name, so a locally installed sans font is
-    # an equivalent offline substitute.
-    from ultralytics.yolo.utils import USER_CONFIG_DIR
+    # dataset uses ASCII class names, so a locally installed sans font is an
+    # equivalent offline substitute.
+    try:
+        from ultralytics.utils import USER_CONFIG_DIR
+    except ImportError:
+        from ultralytics.yolo.utils import USER_CONFIG_DIR
 
     destination = Path(USER_CONFIG_DIR) / "Arial.ttf"
     if destination.is_file():
         return destination
     candidates = (
+        Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "arial.ttf",
+        Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" / "segoeui.ttf",
         Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
         Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf"),
         Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
@@ -313,8 +329,13 @@ def run_training(options, yolo_factory=None):
     metrics = _plain(getattr(trainer, "metrics", {}) or {})
     run_directory = Path(getattr(trainer, "save_dir", best.parent.parent))
     best_model = yolo_factory(str(best))
-    if _model_names(best_model) != ["object"]:
-        raise RuntimeError("trained weights must contain exactly one class named object")
+    trained_class_names = _model_names(best_model)
+    if trained_class_names != list(spec.class_names):
+        raise RuntimeError(
+            "trained weights class names do not match data.yaml: expected {!r}, got {!r}".format(
+                list(spec.class_names), trained_class_names
+            )
+        )
     best_model.val(
         data=str(manifest), imgsz=int(options.imgsz), batch=int(options.batch),
         device=str(options.device), workers=int(options.workers), verbose=True,
@@ -333,7 +354,7 @@ def run_training(options, yolo_factory=None):
         "source_dataset": str(spec.source),
         "resolved_dataset": str(manifest),
         "dataset": {
-            "class_names": ["object"],
+            "class_names": list(spec.class_names),
             "train_images": len(spec.train_images),
             "val_images": len(spec.val_images),
         },

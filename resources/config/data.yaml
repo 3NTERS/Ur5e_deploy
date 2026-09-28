@@ -1,0 +1,11 @@
+# Ultralytics YOLO dataset configuration
+path: "D:/Workspace/RobotArm/Code/object_yolo_dataset"
+train: images/train
+val: images/val
+names:
+  0: object
+  1: tetra
+  2: Octag
+  3: hexag
+  4: Cube
+  5: trian

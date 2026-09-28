@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train and optionally publish the single-class object detector."""
+"""Train and optionally publish a YOLO detector from data.yaml classes."""
 
 from __future__ import annotations
 
