@@ -1,0 +1,8 @@
+# Copy this file outside the repository and replace path with the absolute
+# directory exported by X-AnyLabeling in YOLO Detection format.
+path: /absolute/path/to/object_yolo_dataset
+train: images/train
+val: images/val
+
+names:
+  0: object

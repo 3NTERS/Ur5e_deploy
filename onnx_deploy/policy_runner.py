@@ -8,6 +8,9 @@ class PolicyRunner:
     """Stateful batch-one ONNX policy runner."""
 
     def __init__(self, model_path, provider="cuda"):
+        model_path = Path(model_path)
+        if not model_path.is_file():
+            raise FileNotFoundError(f"ONNX policy does not exist: {model_path}")
         requested = {
             "cuda": "CUDAExecutionProvider",
             "cpu": "CPUExecutionProvider",
@@ -18,7 +21,7 @@ class PolicyRunner:
         if requested not in available:
             raise RuntimeError(f"{requested} is unavailable; available providers: {available}")
         try:
-            self.session = ort.InferenceSession(str(Path(model_path)), providers=[requested])
+            self.session = ort.InferenceSession(str(model_path), providers=[requested])
         except Exception as error:
             raise RuntimeError(
                 f"Failed to create an ONNX Runtime session with {requested}; "
@@ -30,7 +33,13 @@ class PolicyRunner:
         self.provider = requested
         self.inputs = {item.name: item for item in self.session.get_inputs()}
         self.output_names = [item.name for item in self.session.get_outputs()]
+        if "observation" not in self.inputs:
+            raise ValueError(f"ONNX inputs must include 'observation'; got {list(self.inputs)}")
+        if "action" not in self.output_names:
+            raise ValueError(f"ONNX outputs must include 'action'; got {self.output_names}")
         self.observation_dim = self._fixed_dim(self.inputs["observation"].shape[-1])
+        action_output = next(item for item in self.session.get_outputs() if item.name == "action")
+        self.action_dim = self._fixed_dim(action_output.shape[-1])
         self.state = {}
         self.reset()
 
@@ -68,6 +77,10 @@ class PolicyRunner:
             if next_name in values:
                 self.state[current] = np.asarray(values[next_name], dtype=np.float32)
         action = np.asarray(values["action"], dtype=np.float32)
+        if action.shape != (1, self.action_dim):
+            raise RuntimeError(
+                f"Expected policy action shape (1, {self.action_dim}), got {action.shape}"
+            )
         if not np.isfinite(action).all():
             raise RuntimeError("Policy action contains NaN or Inf")
         return action

@@ -1,0 +1,75 @@
+format_version: 1
+
+policy:
+  # Export the matching Ur5eRobotiq checkpoint to this path before deployment.
+  model: resources/models/ur5e_robotiq/policy.onnx
+  metadata: resources/models/ur5e_robotiq/policy.meta.yaml
+  provider: cuda
+  period: 0.01667
+  episode_steps: 600
+
+robot:
+  host: 192.168.1.10
+  gripper_port: 63352
+  servo_speed: 0.5
+  servo_acceleration: 1.0
+  servo_period: 0.002
+  servo_lookahead: 0.1
+  servo_gain: 300
+  gripper_speed: 255
+  gripper_force: 100
+
+camera:
+  serial: null
+  width: 640
+  height: 480
+  fps: 30
+  calibration: resources/calibration/eye_on_base.yaml
+
+vision:
+  weights: resources/models/vision/object_yolo.pt
+  target_class: object
+  confidence: 0.5
+  depth_radius: 3
+  depth_min: 0.05
+  depth_max: 3.0
+  detection_attempts: 30
+  device: null
+
+task:
+  # Bucket/goal centre in the UR base frame. Measure this for the real cell.
+  goal_position: [0.80, 0.35, 0.05]
+  # YOLO supplies position only, so orientation is fixed and velocities are zero.
+  object_quaternion_xyzw: [0.0, 0.0, 0.0, 1.0]
+  # Must match the object variant used by the exported policy.
+  object_scale: [1.0, 1.0, 1.0]
+  palm_center_offset: [0.0, 0.0, 0.145]
+
+safety:
+  # Both this flag and CLI --execute are required before commands can be sent.
+  allow_motion: false
+  arm_lower: [-3.14159, -3.14159, -2.82743, -3.14159, -3.14159, -3.14159]
+  arm_upper: [3.14159, 0.0, 2.82743, 0.0, 3.14159, 3.14159]
+  max_arm_step: 0.05
+  max_joint_velocity: 2.0
+  max_target_error: 0.20
+  max_state_age: 0.25
+  max_policy_lag: 0.05
+  workspace_min: [0.15, -0.80, 0.02]
+  workspace_max: [1.00, 0.80, 1.20]
+  object_position_min: [0.20, -0.60, 0.02]
+  object_position_max: [0.90, 0.60, 0.80]
+
+output:
+  directory: resources/trajectories/ur5e_real
+
+calibration:
+  qr_size_m: 0.080
+  samples: 30
+  max_reprojection_error_px: 1.5
+  # Pose of the QR centre in the UR base frame. Replace after physical measurement.
+  base_to_qr:
+    - [1.0, 0.0, 0.0, 0.50]
+    - [0.0, 1.0, 0.0, 0.00]
+    - [0.0, 0.0, 1.0, 0.00]
+    - [0.0, 0.0, 0.0, 1.00]

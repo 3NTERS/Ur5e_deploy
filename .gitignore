@@ -2,3 +2,10 @@
 **/__pycache__
 **/*.pth
 **/*.log
+/runs/
+resources/models/ur5e_robotiq/policy.onnx
+resources/models/vision/
+resources/training/
+resources/wheels/
+resources/calibration/eye_on_base.yaml
+resources/trajectories/ur5e_real/

@@ -1,0 +1,15 @@
+-c constraints-rlgpu.txt
+-r requirements.txt
+
+# Hardware/runtime packages with CPython 3.7 Linux wheels.
+ur-rtde==1.6.5
+ultralytics==8.0.20
+pyrealsense2==2.55.1.6486
+
+# Last Python 3.7-compatible releases needed by Ultralytics 8.0.20.
+matplotlib==3.5.3
+pandas==1.3.5
+seaborn==0.12.2
+tqdm==4.67.1
+thop==0.1.1.post2209072238
+ipython==7.34.0
