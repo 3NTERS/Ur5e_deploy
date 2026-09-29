@@ -15,7 +15,7 @@ DEFAULT_MODEL = (
     / "resources"
     / "training"
     / "yolo"
-    / "object_yolov8n"
+    / "object_yolov8n_patch"
     / "weights"
     / "best.pt"
 )
@@ -26,7 +26,6 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Predict one image with a trained YOLO model."
     )
-    parser.add_argument("--image", type=Path, required=True, help="input image path")
     parser.add_argument(
         "--model",
         type=Path,
@@ -55,13 +54,12 @@ def class_name(names, class_id: int) -> str:
 
 
 def main() -> None:
+    
     args = parse_args()
-    image_path = args.image.expanduser().resolve()
+    # image_path = args.image.expanduser().resolve()
     model_path = args.model.expanduser().resolve()
     output_directory = args.output_dir.expanduser().resolve()
 
-    if not image_path.is_file():
-        raise FileNotFoundError(f"Input image does not exist: {image_path}")
     if not model_path.is_file():
         raise FileNotFoundError(f"Model weights do not exist: {model_path}")
     if not 0.0 <= args.conf <= 1.0:
@@ -72,41 +70,42 @@ def main() -> None:
         raise ValueError("--imgsz must be positive")
 
     model = YOLO(str(model_path))
-    results = model.predict(
-        source=str(image_path),
-        conf=args.conf,
-        iou=args.iou,
-        imgsz=args.imgsz,
-        device=str(args.device),
-        save=False,
-        verbose=False,
-    )
-    if not results:
-        raise RuntimeError("YOLO returned no prediction result")
+    for image_path in (ROOT / "tests" / "predictions" / "images").glob("*.jpg"):
+        results = model.predict(
+            source=str(image_path),
+            conf=args.conf,
+            iou=args.iou,
+            imgsz=args.imgsz,
+            device=str(args.device),
+            save=False,
+            verbose=False,
+        )
+        if not results:
+            raise RuntimeError("YOLO returned no prediction result")
 
-    result = results[0]
-    output_directory.mkdir(parents=True, exist_ok=True)
-    output_path = output_directory / f"{image_path.stem}_pred.jpg"
-    result.save(filename=str(output_path))
+        result = results[0]
+        output_directory.mkdir(parents=True, exist_ok=True)
+        output_path = output_directory / f"{image_path.stem}_pred.jpg"
+        result.save(filename=str(output_path))
 
-    boxes = result.boxes
-    detection_count = 0 if boxes is None else len(boxes)
-    print(f"Image: {image_path}")
-    print(f"Model: {model_path}")
-    print(f"Detections: {detection_count}")
+        boxes = result.boxes
+        detection_count = 0 if boxes is None else len(boxes)
+        print(f"Image: {image_path}")
+        print(f"Model: {model_path}")
+        print(f"Detections: {detection_count}")
 
-    if boxes is not None:
-        for index, box in enumerate(boxes, 1):
-            class_id = int(box.cls.item())
-            confidence = float(box.conf.item())
-            x1, y1, x2, y2 = (float(value) for value in box.xyxy[0].tolist())
-            print(
-                f"{index}: class={class_name(result.names, class_id)} "
-                f"id={class_id} confidence={confidence:.4f} "
-                f"xyxy=({x1:.1f}, {y1:.1f}, {x2:.1f}, {y2:.1f})"
-            )
+        if boxes is not None:
+            for index, box in enumerate(boxes, 1):
+                class_id = int(box.cls.item())
+                confidence = float(box.conf.item())
+                x1, y1, x2, y2 = (float(value) for value in box.xyxy[0].tolist())
+                print(
+                    f"{index}: class={class_name(result.names, class_id)} "
+                    f"id={class_id} confidence={confidence:.4f} "
+                    f"xyxy=({x1:.1f}, {y1:.1f}, {x2:.1f}, {y2:.1f})"
+                )
 
-    print(f"Annotated image: {output_path}")
+        print(f"Annotated image: {output_path}")
 
 
 if __name__ == "__main__":
