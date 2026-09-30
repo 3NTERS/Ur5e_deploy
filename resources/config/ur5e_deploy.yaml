@@ -9,13 +9,24 @@ policy:
   episode_steps: 600
 
 robot:
+  # Dedicated Ethernet link to the UR control box. The PC is expected at 192.168.1.20/24.
   host: 192.168.1.10
+  # Robotiq Grippers URCap socket exposed by the control box. The external RS-485 cable
+  # terminates at the control box; the deployment PC does not open a serial device.
   gripper_port: 63352
+  home_joint_position: [-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0.0]
+  home_speed: 0.25
+  home_acceleration: 0.5
+  home_tolerance: 0.02
   servo_speed: 0.5
   servo_acceleration: 1.0
   servo_period: 0.002
   servo_lookahead: 0.1
   servo_gain: 300
+  # FIFO priorities: RTDE receive > RTDE control > Python servo target feeder.
+  rtde_receive_priority: 90
+  rtde_control_priority: 85
+  servo_thread_priority: 80
   gripper_speed: 255
   gripper_force: 100
 
@@ -25,7 +36,7 @@ camera:
   serial: null
   width: 640
   height: 480
-  fps: 30
+  fps: 60
   # Eye-on-hand: the RealSense is rigidly attached to the currently configured UR TCP.
   calibration: resources/calibration/eye_on_hand.yaml
   max_detection_sync_interval_s: 0.25
@@ -34,20 +45,39 @@ camera:
   max_detection_linear_speed_m_s: 0.005
   max_detection_angular_speed_rad_s: 0.02
 
+tracking_camera:
+  # Fixed eye-on-base D435i. Both camera serial numbers must be filled and different.
+  model: D435i
+  serial: null
+  width: 640
+  height: 480
+  fps: 60
+  calibration: resources/calibration/eye_on_base.yaml
+
+tracking:
+  cross_camera_max_delta_m: 0.05
+  association_max_distance_m: 0.25
+  position_alpha: 0.6
+  velocity_alpha: 0.4
+  prediction_horizon_s: 0.10
+  max_state_age_s: 0.15
+
 vision:
   weights: resources/models/vision/object_yolo.pt
+  # Multi-class weights are supported. Only this class is passed to the RL policy.
   target_class: object
   confidence: 0.5
   depth_radius: 3
   depth_min: 0.05
   depth_max: 3.0
+  center_depth_offset_m: 0.01
   detection_attempts: 30
   device: null
 
 task:
   # Bucket/goal centre in the UR base frame. Measure this for the real cell.
   goal_position: [0.80, 0.35, 0.05]
-  # YOLO supplies position only, so orientation is fixed and velocities are zero.
+  # Vision updates position/linear velocity; orientation stays fixed and angular velocity is zero.
   object_quaternion_xyzw: [0.0, 0.0, 0.0, 1.0]
   # Must match the object variant used by the exported policy.
   object_scale: [1.0, 1.0, 1.0]
@@ -85,6 +115,25 @@ calibration:
     square_size_m: 0.015
     pattern_size_m: [0.180, 0.135]
     overall_size_m: [0.240, 0.200]
+  max_reprojection_error_px: 1.0
+  max_capture_interval_s: 0.25
+  max_capture_translation_delta_m: 0.002
+  max_capture_rotation_delta_deg: 0.5
+  max_tcp_linear_speed_m_s: 0.005
+  max_tcp_angular_speed_rad_s: 0.02
+  minimum_sample_translation_m: 0.020
+  minimum_sample_rotation_deg: 8.0
+  minimum_translation_span_m: 0.10
+  minimum_rotation_span_deg: 30.0
+  max_board_translation_error_m: 0.010
+  max_board_rotation_error_deg: 2.0
+
+eye_on_base_calibration:
+  type: eye_on_base
+  method: shah
+  samples: 20
+  minimum_inliers: 12
+  session_directory: resources/calibration/eye_on_base_sessions
   max_reprojection_error_px: 1.0
   max_capture_interval_s: 0.25
   max_capture_translation_delta_m: 0.002

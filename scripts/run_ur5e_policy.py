@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 import sys
 
+import numpy as np
 import yaml
 
 
@@ -14,7 +15,7 @@ if str(ROOT) not in sys.path:
 
 from onnx_deploy.policy_runner import PolicyRunner
 from ur5e_comm.deployment import DeploymentSession
-from ur5e_comm.geometry import load_eye_on_hand
+from ur5e_comm.geometry import load_eye_on_base, load_eye_on_hand
 from ur5e_comm.observation import (
     JOINT_ORDER,
     MujocoStateProjector,
@@ -23,7 +24,7 @@ from ur5e_comm.observation import (
     Ur5eObservationBuilder,
 )
 from ur5e_comm.robot import UR5eHardware
-from ur5e_comm.vision import RealSenseCamera, YoloInitialObjectLocator
+from ur5e_comm.vision import RealSenseCamera, YoloEyeOnBaseLocator, YoloInitialObjectLocator
 
 
 def resolve_path(value):
@@ -64,6 +65,12 @@ def main():
     validate_contract(policy_cfg["metadata"], policy)
     period = float(policy_cfg["period"])
     camera_cfg = config["camera"]
+    tracking_camera_cfg = config["tracking_camera"]
+    wrist_serial = camera_cfg.get("serial")
+    tracking_serial = tracking_camera_cfg.get("serial")
+    if not wrist_serial or not tracking_serial or str(wrist_serial) == str(tracking_serial):
+        raise RuntimeError("camera.serial and tracking_camera.serial must be set to distinct devices")
+    tracking_cfg = config["tracking"]
     vision_cfg = config["vision"]
     robot_cfg = config["robot"]
     task_cfg = config["task"]
@@ -80,8 +87,28 @@ def main():
         vision_cfg["depth_radius"],
         vision_cfg["depth_min"],
         vision_cfg["depth_max"],
+        vision_cfg["center_depth_offset_m"],
         vision_cfg.get("device"),
     )
+    base_to_tracking_camera = load_eye_on_base(
+        resolve_path(tracking_camera_cfg["calibration"]),
+        config["calibration"]["checkerboard"],
+        tracking_camera_cfg.get("model"),
+        tracking_serial,
+    )
+    tracking_detector = YoloInitialObjectLocator(
+        resolve_path(vision_cfg["weights"]),
+        np.eye(4),
+        vision_cfg.get("target_class"),
+        vision_cfg["confidence"],
+        vision_cfg["depth_radius"],
+        vision_cfg["depth_min"],
+        vision_cfg["depth_max"],
+        vision_cfg["center_depth_offset_m"],
+        vision_cfg.get("device"),
+        model=locator.model,
+    )
+    tracking_locator = YoloEyeOnBaseLocator(base_to_tracking_camera, tracking_detector)
     projector = MujocoStateProjector(
         ROOT / "resources/assets/robots/ur5e_robotiq_2f85/ur5e_robotiq_2f85.xml",
         task_cfg["palm_center_offset"],
@@ -112,14 +139,20 @@ def main():
     )
     steps = int(args.steps or policy_cfg["episode_steps"])
     output = resolve_path(config["output"]["directory"])
-    print("模式：{}；每回合只在开始时锁定一次物体位置。".format("实机执行" if args.execute else "只读 dry-run"))
+    print("模式：{}；腕部相机初始化，固定相机在线跟踪。".format("实机执行" if args.execute else "只读 dry-run"))
     with RealSenseCamera(
         camera_cfg["width"],
         camera_cfg["height"],
         camera_cfg["fps"],
         camera_cfg.get("serial"),
         camera_cfg.get("model"),
-    ) as camera, UR5eHardware(
+    ) as camera, RealSenseCamera(
+        tracking_camera_cfg["width"],
+        tracking_camera_cfg["height"],
+        tracking_camera_cfg["fps"],
+        tracking_camera_cfg.get("serial"),
+        tracking_camera_cfg.get("model"),
+    ) as tracking_camera, UR5eHardware(
         robot_cfg["host"],
         robot_cfg["gripper_port"],
         servo_period=robot_cfg["servo_period"],
@@ -129,6 +162,9 @@ def main():
         servo_gain=robot_cfg["servo_gain"],
         gripper_speed=robot_cfg["gripper_speed"],
         gripper_force=robot_cfg["gripper_force"],
+        rtde_receive_priority=robot_cfg["rtde_receive_priority"],
+        rtde_control_priority=robot_cfg["rtde_control_priority"],
+        servo_thread_priority=robot_cfg["servo_thread_priority"],
         allow_motion=args.execute,
         activate_gripper=args.execute,
     ) as robot:
@@ -149,6 +185,18 @@ def main():
             camera_cfg["max_detection_rotation_delta_deg"],
             camera_cfg["max_detection_linear_speed_m_s"],
             camera_cfg["max_detection_angular_speed_rad_s"],
+            home_joint_position=robot_cfg["home_joint_position"],
+            home_speed=robot_cfg["home_speed"],
+            home_acceleration=robot_cfg["home_acceleration"],
+            home_tolerance=robot_cfg["home_tolerance"],
+            tracking_camera=tracking_camera,
+            tracking_locator=tracking_locator,
+            cross_camera_max_delta_m=tracking_cfg["cross_camera_max_delta_m"],
+            association_max_distance_m=tracking_cfg["association_max_distance_m"],
+            position_alpha=tracking_cfg["position_alpha"],
+            velocity_alpha=tracking_cfg["velocity_alpha"],
+            prediction_horizon_s=tracking_cfg["prediction_horizon_s"],
+            max_object_state_age_s=tracking_cfg["max_state_age_s"],
         )
         for index in range(args.episodes):
             print("开始回合 {}/{}".format(index + 1, args.episodes))

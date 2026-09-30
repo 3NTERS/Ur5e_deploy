@@ -147,7 +147,7 @@ def _validate_split(root, directory, split, class_count):
 
 
 def validate_dataset(data):
-    """Validate the strict one-class X-AnyLabeling YOLO export contract."""
+    """Validate an X-AnyLabeling multi-class YOLO Detection export."""
     data_path = Path(data).expanduser().resolve()
     if not data_path.is_file():
         raise ValueError("dataset YAML does not exist: {}".format(data_path))

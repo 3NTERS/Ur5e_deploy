@@ -209,59 +209,104 @@ class Ur5eObservationBuilder:
             raise ValueError("object quaternion cannot be zero")
         self.object_quaternion = self.object_quaternion / norm
         self.object_position = None
+        self.object_linear_velocity = np.zeros(3, dtype=np.float64)
+        self.initial_object_z = None
         self.progress = 0
         self.successes = 0.0
         self.lifted = False
         self.reward = 0.0
         self.closest_keypoint = np.inf
         self.closest_fingertips = np.full(2, np.inf, dtype=np.float64)
+        self.furthest_hand = -np.inf
 
     def begin_episode(self, initial_object_position):
         position = np.asarray(initial_object_position, dtype=np.float64)
         if position.shape != (3,) or not np.isfinite(position).all():
             raise ValueError("initial object position must contain three finite values")
         self.object_position = position.copy()
+        self.object_linear_velocity[:] = 0.0
+        self.initial_object_z = float(position[2])
         self.progress = 0
         self.successes = 0.0
         self.lifted = False
         self.reward = 0.0
         self.closest_keypoint = float(np.linalg.norm(position - self.goal_position))
         self.closest_fingertips[:] = np.inf
+        self.furthest_hand = -np.inf
         self.projector.reset()
 
-    def build(self, snapshot: RobotSnapshot):
+    def update_object(self, position, linear_velocity):
+        position = np.asarray(position, dtype=np.float64)
+        velocity = np.asarray(linear_velocity, dtype=np.float64)
+        if position.shape != (3,) or velocity.shape != (3,):
+            raise ValueError("object position and linear velocity must contain three values")
+        if not np.isfinite(position).all() or not np.isfinite(velocity).all():
+            raise ValueError("object position and linear velocity must be finite")
+        self.object_position = position.copy()
+        self.object_linear_velocity = velocity.copy()
+
+    def build(self, snapshot: RobotSnapshot, object_state=None):
         if self.object_position is None:
             raise RuntimeError("begin_episode must be called before building observations")
+        if object_state is not None:
+            self.update_object(object_state.position_base, object_state.linear_velocity_base)
         state = self.projector.project(snapshot)
         scaled_qpos = 2.0 * (state.joint_position - TRAINING_LOWER) / (TRAINING_UPPER - TRAINING_LOWER) - 1.0
         fingertips_relative_palm = state.fingertip_position - state.palm_center_position
         fingertip_distances = np.linalg.norm(state.fingertip_position - self.object_position, axis=1)
         if not np.isfinite(self.closest_fingertips).all():
             self.closest_fingertips = fingertip_distances.copy()
+            self.furthest_hand = float(fingertip_distances[0])
         closest_fingertips_before_update = self.closest_fingertips.copy()
         keypoint_relative_palm = self.object_position - state.palm_center_position
         keypoint_relative_goal = self.object_position - self.goal_position
-        self.closest_keypoint = min(self.closest_keypoint, float(np.linalg.norm(keypoint_relative_goal)))
-        # Requirement: vision supplies the initial object state only. Consequently
-        # object linear/angular velocity and reward/lift feedback remain zero.
-        object_state = np.concatenate((self.object_quaternion, np.zeros(6, dtype=np.float64)))
+        keypoint_distance = float(np.linalg.norm(keypoint_relative_goal))
+        closest_keypoint_before_update = self.closest_keypoint
+        lifted_before_update = self.lifted
+        successes_before_update = self.successes
+
+        z_lift = 0.05 + self.object_position[2] - self.initial_object_z
+        lifted = bool(z_lift > 0.15 or self.lifted)
+        lifting_reward = float(np.clip(z_lift, 0.0, 0.5)) * (not lifted) * 20.0
+        lift_bonus = 300.0 if lifted and not self.lifted else 0.0
+        fingertip_delta = np.clip(
+            self.closest_fingertips - fingertip_distances, 0.0, 10.0
+        )
+        fingertip_reward = float(fingertip_delta.sum()) * (not lifted) * 50.0
+        keypoint_delta = float(np.clip(self.closest_keypoint - keypoint_distance, 0.0, 100.0))
+        keypoint_reward = keypoint_delta * lifted * 200.0
+        near_goal = keypoint_distance <= 0.075 * 1.5
+        arm_penalty = -0.003 * float(np.abs(state.joint_velocity[:6]).sum())
+        gripper_penalty = -0.0003 * float(np.abs(state.joint_velocity[6:]).sum())
+        reward = (
+            fingertip_reward
+            + lifting_reward
+            + lift_bonus
+            + keypoint_reward
+            + 1000.0 * near_goal
+            + arm_penalty
+            + gripper_penalty
+        )
+        object_state_values = np.concatenate(
+            (self.object_quaternion, self.object_linear_velocity, np.zeros(3, dtype=np.float64))
+        )
         observation = np.concatenate(
             (
                 scaled_qpos,
                 state.joint_velocity,
                 state.palm_center_position,
                 state.palm_state,
-                object_state,
+                object_state_values,
                 fingertips_relative_palm.reshape(-1),
                 keypoint_relative_palm,
                 keypoint_relative_goal,
                 self.object_scale,
-                [self.closest_keypoint],
+                [closest_keypoint_before_update],
                 closest_fingertips_before_update,
-                [float(self.lifted)],
+                [float(lifted_before_update)],
                 [np.log(self.progress / 10.0 + 1.0)],
-                [np.log(self.successes + 1.0)],
-                [self.reward],
+                [np.log(successes_before_update + 1.0)],
+                [0.01 * reward],
             )
         ).astype(np.float32)
         if observation.shape != (self.observation_dim,):
@@ -270,6 +315,12 @@ class Ur5eObservationBuilder:
         if not np.isfinite(observation).all():
             raise RuntimeError("Observation contains NaN or Inf")
         self.closest_fingertips = np.minimum(self.closest_fingertips, fingertip_distances)
+        self.furthest_hand = max(self.furthest_hand, float(fingertip_distances[0]))
+        self.closest_keypoint = min(self.closest_keypoint, keypoint_distance)
+        self.lifted = lifted
+        if near_goal:
+            self.successes += 1.0
+        self.reward = reward
         return observation, state
 
     def advance(self):
@@ -343,6 +394,9 @@ class SafetyMonitor:
             raise ValueError("safety velocity, target error, and state age must be positive")
 
     def check_initial_object(self, position):
+        self.check_object_position(position)
+
+    def check_object_position(self, position):
         position = np.asarray(position, dtype=np.float64)
         if position.shape != (3,) or not np.isfinite(position).all():
             raise RuntimeError("Detected object position is invalid")

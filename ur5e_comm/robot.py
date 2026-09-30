@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import socket
 import threading
 from dataclasses import dataclass, field
@@ -112,13 +113,18 @@ class UR5eHardware:
         servo_gain=300,
         gripper_speed=255,
         gripper_force=100,
+        rtde_receive_priority=90,
+        rtde_control_priority=85,
+        servo_thread_priority=80,
         allow_motion=False,
     ):
         try:
             import rtde_receive
         except ImportError as error:
             raise RuntimeError("Install ur-rtde to connect to the UR5e") from error
-        self.receive = rtde_receive.RTDEReceiveInterface(str(host))
+        self.receive = rtde_receive.RTDEReceiveInterface(
+            str(host), rt_priority=int(rtde_receive_priority)
+        )
         self.allow_motion = bool(allow_motion)
         self.control = None
         if self.allow_motion:
@@ -126,7 +132,9 @@ class UR5eHardware:
                 import rtde_control
             except ImportError as error:
                 raise RuntimeError("Install ur-rtde control support to command the UR5e") from error
-            self.control = rtde_control.RTDEControlInterface(str(host))
+            self.control = rtde_control.RTDEControlInterface(
+                str(host), rt_priority=int(rtde_control_priority)
+            )
         self.gripper = RobotiqSocket(host, gripper_port, gripper_timeout)
         if activate_gripper and self.allow_motion:
             self.gripper.activate()
@@ -137,6 +145,7 @@ class UR5eHardware:
         self.servo_gain = int(servo_gain)
         self.gripper_speed = int(gripper_speed)
         self.gripper_force = int(gripper_force)
+        self.servo_thread_priority = int(servo_thread_priority)
         self.closed = False
         self._target_lock = threading.Lock()
         self._servo_stop_event = threading.Event()
@@ -146,6 +155,28 @@ class UR5eHardware:
         self._last_gripper_command_time = -np.inf
         self._arm_target = None
         self._servo_thread = None
+
+    def home(self, joint_position, speed=0.25, acceleration=0.5, tolerance=0.02):
+        if not self.allow_motion or self.control is None:
+            raise RuntimeError("Hardware interface is read-only; motion was not armed")
+        target = _vector(joint_position, 6, "home joint position")
+        self.gripper.move(0, self.gripper_speed, self.gripper_force)
+        while self.gripper.get("POS") > 5:
+            sleep(0.05)
+        ok = self.control.moveJ(target.tolist(), float(speed), float(acceleration), False)
+        if ok is False:
+            raise RuntimeError("UR RTDE moveJ rejected the home target")
+        while np.max(np.abs(_vector(self.receive.getActualQd(), 6, "actual qd"))) > 0.01:
+            sleep(0.01)
+        actual = _vector(self.receive.getActualQ(), 6, "actual q")
+        error = float(np.max(np.abs(actual - target)))
+        if error > float(tolerance):
+            raise RuntimeError(
+                "UR5e home joint error {:.6f} rad exceeds {:.6f} rad".format(
+                    error, float(tolerance)
+                )
+            )
+        return actual
 
     def start_motion(self):
         if not self.allow_motion or self.control is None:
@@ -167,6 +198,11 @@ class UR5eHardware:
 
     def _servo_loop(self):
         try:
+            os.sched_setscheduler(
+                0,
+                os.SCHED_FIFO,
+                os.sched_param(self.servo_thread_priority),
+            )
             while not self._servo_stop_event.is_set():
                 started = self.control.initPeriod() if hasattr(self.control, "initPeriod") else None
                 with self._target_lock:

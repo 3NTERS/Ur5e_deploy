@@ -76,10 +76,20 @@ class TestDatasetValidation(unittest.TestCase):
             self.assertEqual(len(spec.train_images), 1)
             self.assertEqual(len(spec.val_images), 1)
 
-    def test_rejects_wrong_class_name(self):
+    def test_accepts_multiple_classes(self):
         with tempfile.TemporaryDirectory() as directory:
-            data = make_dataset(directory, names={0: "ball"})
-            with self.assertRaisesRegex(ValueError, "exactly one class"):
+            data = make_dataset(
+                directory,
+                names={0: "background_object", 1: "object"},
+                label="1 0.5 0.5 0.4 0.4\n",
+            )
+            spec = validate_dataset(data)
+            self.assertEqual(spec.class_names, ("background_object", "object"))
+
+    def test_rejects_unknown_class_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = make_dataset(directory, names={0: "object"}, label="1 0.5 0.5 0.4 0.4\n")
+            with self.assertRaisesRegex(ValueError, "class ID"):
                 validate_dataset(data)
 
     def test_rejects_bbox_outside_image(self):

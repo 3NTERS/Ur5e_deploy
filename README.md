@@ -124,6 +124,44 @@ outer knuckle 与 inner knuckle 按 `+1` mimic，两个 inner finger 按 `-1` mi
 夹爪资源包在 `package.xml` 中声明 BSD 许可；模型来源与维护者信息保留在工作区内的
 `components/robotiq_2f_85_gripper_visualization/`。
 
+### UR5e 抛投 sim2sim
+
+抛投 scene 在合体模型上加入训练用窄桌、自由长方体和桶 mesh，物体基准边长为
+`0.04 m`、密度为 `567 kg/m³`。重新生成 scene：
+
+```bash
+conda run --no-capture-output -n rlgpu \
+  python -m mujoco_sim.build_ur5e_throw_scene
+```
+
+无 reference 时使用固定的 69→7 ONNX 闭环运行，并输出 NPZ/CSV：
+
+```bash
+conda run --no-capture-output -n rlgpu \
+  python -m mujoco_sim.run_ur5e_sim2sim --provider cuda --seed 0
+```
+
+在当前仓库调用原 Isaac Gym 任务采集同策略、同 seed、单环境参考（不会修改训练仓库）：
+
+```bash
+conda run --no-capture-output -n rlgpu \
+  python scripts/export_ur5e_isaac_reference.py \
+  --isaac-root /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs \
+  --seed 0
+```
+
+随后从参考首帧初始化 MuJoCo、回放相同动作并生成纯数值 JSON 报告：
+
+```bash
+conda run --no-capture-output -n rlgpu \
+  python -m mujoco_sim.run_ur5e_sim2sim \
+  --reference resources/trajectories/ur5e_isaac_reference.npz
+```
+
+报告不设跨引擎误差通过阈值；它列出逐关节位置/速度/动作目标、掌心、双指尖、
+物体位置/四元数角度/速度以及 lift、release、进入目标范围的事件步差。缺失数组、
+维度错误或非有限数值仍会直接报错。
+
 独立加载、刚性安装、执行器范围和 1000-step 动力学测试：
 
 ```bash
@@ -133,9 +171,8 @@ conda run --no-capture-output -n rlgpu \
 
 ## Next gates
 
-UR5e+Robotiq 的 MJCF 与 mesh 资产门已经具备。实机软件闭环也已经实现，但首次
-带电运动前仍必须完成下方“实机部署”中的外部验收项，尤其是匹配 checkpoint 的
-sim2sim 和低速小步测试。
+UR5e+Robotiq 的 MJCF、抛投 sim2sim 和实机软件闭环已经具备，但首次带电运动前仍必须
+用最终选定的 ONNX 采集 Isaac 参考并审阅对齐报告，再完成下方外部验收项和低速小步测试。
 
 ## UR5e 实机部署
 
@@ -147,12 +184,11 @@ sim2sim 和低速小步测试。
 TCP 速度、电流和目标力矩均从 RTDE 读取并写入每回合轨迹；训练 observation 所需的
 掌心、指尖位姿和速度通过仓库内同一套 UR5e+2F85 MJCF 正运动学重建。
 
-按需求，YOLO+深度相机只在每回合开始时取得一次物体中心。RealSense 采用 eye-on-hand
-刚性安装，运行时用 RTDE 的当前 `T_base_tcp` 与标定的 `T_tcp_camera` 组合得到
-`T_base_camera`。之后物体位置和姿态固定，
-物体线速度、角速度、lifted、在线 reward 均填 0；LSTM 状态仍逐步传递。这个行为与
-训练时可持续读取仿真物体状态不同，属于明确的 sim-to-real 分布偏移，必须在
-sim2sim/离线回放中单独验证成功率。
+部署使用两台 D435i：eye-on-hand 相机在每回合开始时定位目标，固定 eye-on-base 相机
+交叉确认后在整回合持续跟踪。bbox 中心邻域的深度中位数是物体表面深度；程序增加
+`0.01 m` 后沿同一像素射线反投影，再转换到 UR base。固定相机按配置帧率更新位置，
+策略以滤波位置和线速度更新相对掌心/目标、lifted 和 reward；物体四元数保持配置值，
+角速度为零。短时丢检使用有界匀速预测，状态超过 `0.15 s` 即在下一条控制命令前停止。
 
 ### 1. 安装实机依赖
 
@@ -165,6 +201,21 @@ python -m pip install -r requirements-hardware.txt
 `pyrealsense2==2.55.1.6486`。`constraints-rlgpu.txt` 同时保护现有 Torch 1.8.1、
 Torchvision 0.9.1、NumPy 1.21.6 和 CUDA 11 组合，安装后可用部署 preflight 核对
 实际导入和版本。
+
+部署机使用 Ubuntu HWE low-latency 软实时内核，并配套 Canonical 预编译、签名的
+NVIDIA 模块；不要在这台 CUDA 主机上强制绕过 NVIDIA 的 PREEMPT_RT 检查：
+
+```bash
+sudo apt-get install -y \
+  linux-lowlatency-hwe-22.04 \
+  linux-modules-nvidia-610-lowlatency-hwe-22.04 \
+  rt-tests
+```
+
+当前验收版本为 `6.8.0-142-lowlatency`、NVIDIA `610.57.04`。`realtime` 组的
+`RLIMIT_RTPRIO` 必须至少为 90；部署配置将 RTDE receive、RTDE control 和 Python
+500 Hz servo feeder 分别设为 FIFO `90/85/80`。用 `cyclictest -p90 -t1 -i2000
+-D30s -m -q` 验证 2 ms 周期，且必须在 YOLO/CUDA 并发负载下复测。
 
 网络较慢时，可先从清华 PyPI 镜像单独下载缺少的 wheel/源码包，再离线安装。下载清单
 在 `requirements-hardware-download.txt`，不包含已有的 Torch/CUDA 大包：
@@ -182,10 +233,64 @@ python -m pip install \
 相同 Python 3.7 / Linux x86_64 的离线部署机使用。脚本按清单逐包下载并默认使用 6 个
 并发连接；网络有限时可通过 `DOWNLOAD_JOBS=2` 调低。
 
-### 2. 训练物体检测 YOLO
+### 2. 配置控制柜侧 UR5e 与 Robotiq 驱动
 
-在 X-AnyLabeling 中只使用矩形框，类别名固定为 `object`，导出为 YOLO Detection
-格式。训练脚本要求标准目录，且每张图片都要有合法的归一化标签：
+本项目采用以下固定链路：PC 通过专用以太网直接运行 `ur-rtde`；2F-85 的外部线缆接入
+UR 控制柜，由控制柜内的 Robotiq 原装 USB-RS485 转换器和 **Robotiq Grippers URCap**
+驱动；PC 上的程序只连接 `192.168.1.10:63352`。因此不要在 PC 安装 `pyserial`，不要把
+夹爪接到 PC 的 USB，也不要改成本机 Modbus RTU 后端。
+
+在控制柜断电并执行现场上锁/挂牌后，按夹爪和控制柜对应版本的官方接线图完成接线：
+
+- 夹爪外部线缆的电源线接控制柜 `24 V/0 V`，RS-485 信号线和屏蔽线接 Robotiq 原装
+  USB-RS485 转换器，再将转换器插入控制柜 USB；端子定义、极性、屏蔽接地及控制柜
+  24 V 余量必须以实物手册和线缆料号为准。
+- 不从 PC USB 给夹爪供电，不并联第二个 RS-485 终端电阻，也不要同时接腕部 Tool I/O。
+- 上电前用万用表核对极性、电压和无短路；安装夹爪、coupling、两台相机及安装件后，
+  在 UR installation 中填写总 payload、质心和 active TCP。相机标定完成后不得修改 TCP。
+
+在 PolyScope 5 中安装与控制器版本兼容的 **Robotiq Grippers URCap** 并重启控制器；在
+Installation 的 Robotiq 页面依次执行扫描、激活和重新标定，先用示教器低速开合确认
+`0=open、255=closed`。这条控制柜接线需要 Robotiq URCap，但不需要 Robotiq Wrist
+Connection URCap。本项目的 `ur-rtde` 使用默认脚本上传方式，也不安装或选择 Universal
+Robots External Control URCap。
+
+在 PolyScope 中启用 Remote Control，并在 Security/Services 中启用 Dashboard、
+Primary/Secondary、Real-time 和 RTDE 服务。设置专用静态网络：
+
+- UR5e：`192.168.1.10/24`，网关和 DNS 留空。
+- 部署 PC 网口：`192.168.1.20/24`，网关和 DNS 留空；不要与 Wi-Fi 或其他网口使用重叠网段。
+- 连接前保持机器人在 Local 模式完成示教器设置；运行实机程序时切换到 Remote Control。
+
+控制柜配置完成后，先做不发送运动命令的连通性检查：
+
+```bash
+ping -c 3 192.168.1.10
+nc -vz 192.168.1.10 29999
+nc -vz 192.168.1.10 30002
+nc -vz 192.168.1.10 30004
+nc -vz 192.168.1.10 63352
+```
+
+下面两项分别只读取机械臂关节和夹爪位置。夹爪应返回 `POS 0..255`，不得返回空响应：
+
+```bash
+conda run --no-capture-output -n rlgpu python -c \
+  "import rtde_receive; r=rtde_receive.RTDEReceiveInterface('192.168.1.10'); print(r.getActualQ()); r.disconnect()"
+
+conda run --no-capture-output -n rlgpu python -c \
+  "import socket; s=socket.create_connection(('192.168.1.10',63352),1); s.sendall(b'GET POS\\n'); print(s.recv(1024).decode().strip()); s.close()"
+```
+
+现场按“24 V/接线检查 → URCap 示教器低速开合 → `63352` 只读 → RTDE 只读 → 完整
+dry-run → 低速单回合运动”的顺序验收。前一项未通过时不要进入下一项。
+
+### 3. 训练物体检测 YOLO
+
+在 X-AnyLabeling 中只使用矩形框并导出为 YOLO Detection 格式；可以包含多个类别。
+需要作为强化学习初始物体位置的类别必须出现在 `data.yaml` 的 `names` 中，并与
+`resources/config/ur5e_deploy.yaml` 的 `vision.target_class` 完全一致。训练脚本要求
+标准目录，且每张图片都要有合法的归一化标签：
 
 ```text
 object_yolo_dataset/
@@ -198,8 +303,9 @@ object_yolo_dataset/
 └── data.yaml
 ```
 
-`data.yaml` 可参考 `resources/config/yolo_object_data.example.yaml`。脚本会先校验
-类别、目录和每一个 bbox，再训练、用 `best.pt` 验证并对第一张验证图片做 smoke
+`data.yaml` 可参考 `resources/config/data.yaml`；当前示例包含多个类别，类别 ID 必须从
+0 开始连续排列。脚本会先校验类别、目录和每一个 bbox，再训练、
+用 `best.pt` 验证并对第一张验证图片做 smoke
 推理。脚本会从系统 DejaVu/Liberation 字体创建本地训练缓存，避免 Ultralytics 8.0.20
 首次运行时联网下载 `Arial.ttf`。默认不会覆盖部署权重：
 
@@ -235,7 +341,24 @@ conda run --no-capture-output -n rlgpu \
   --resume /absolute/path/to/run/weights/last.pt
 ```
 
-### 3. 导出选定 checkpoint
+训练或发布后可在不连接 UR5e 的情况下检查 D435i 多类别识别、bbox 中心、对齐深度和
+相机坐标。打开实时彩色流时会绘制所有类别的检测框、中心十字、置信度和中心深度；
+`TARGET` 是正式部署会选中的目标（目标类别中置信度最高的检测框）。按 `q`、`Esc` 或
+关闭窗口退出：
+
+```bash
+conda run --no-capture-output -n rlgpu \
+  python scripts/inspect_yolo_realsense.py --view
+```
+
+不加 `--view` 时默认只处理并打印一帧。可用 `--weights`、`--target-class`、
+`--confidence`、`--device`、`--frames` 和 `--print-every` 临时覆盖行为。
+部署环境固定为 Python 3.7 / Ultralytics 8.0.20；对于新版 Ultralytics 8.x 训练、但仍由
+旧版已有 YOLOv8 层组成的 `.pt`，加载器会注册只读模块路径兼容别名，并关闭运行时自动
+安装。若权重包含旧版不存在的新层，程序会明确要求在训练环境导出 ONNX，而不会尝试
+联网修改部署环境。
+
+### 4. 导出选定 checkpoint
 
 仓库不会从训练目录中的大量 checkpoint 擅自选择权重。先按仿真评估结果选定一个，
 再严格恢复完整 rl-games 模型（含输入归一化统计）并导出、数值校验：
@@ -250,13 +373,11 @@ conda run --no-capture-output -n rlgpu \
 输出为 `resources/models/ur5e_robotiq/policy.onnx`，同时更新 checkpoint/ONNX 哈希和
 验证误差。部署入口还会再次校验 ONNX 的 69/7 维接口与关节顺序。
 
-### 4. 配置与 eye-on-hand 标定
+### 5. 配置与双相机标定
 
-编辑 `resources/config/ur5e_deploy.yaml` 中的机器人 IP、目标桶中心、安全关节/工作空间、
-   YOLO 权重和目标类别。相机为 Intel RealSense D435i，必须刚性安装在当前 UR TCP 上；在工作空间
-   固定 DFVision `Q12-240-15` 棋盘格。厂家规格是 `12×9` 个方格、单格 `15 mm`，因此 OpenCV
-   配置为 `11×8` 内角点（图案区 `180×135 mm`，整板 `240×200 mm`）。运行脚本后，用示教器手动改变相机位置与朝向，
-每次完全静止后按回车采集：
+编辑 `resources/config/ur5e_deploy.yaml` 中的机器人 IP、目标桶中心、安全边界、YOLO 参数，
+并填写两台 D435i 各自且不同的序列号。腕部相机刚性安装在当前 UR TCP 上；先将 DFVision
+`Q12-240-15` 棋盘固定在工作空间，用示教器手动改变腕部相机位置与朝向并采集：
 
 ```bash
 conda run --no-capture-output -n rlgpu \
@@ -269,14 +390,26 @@ conda run --no-capture-output -n rlgpu \
 残差。输出 `eye_on_hand.yaml` 中的 `T_tcp_camera` 将相机光学坐标系转换到标定时的 UR TCP。
 修改示教器的 active TCP 或相机安装后必须重新标定。
 
+随后固定第二台 D435i。将同一棋盘刚性安装到 TCP，固定相机保持不动，用示教器手动改变
+TCP 姿态并采集；棋盘相对 TCP 的安装偏置无需测量，脚本会与 `T_base_camera` 同时求解：
+
+```bash
+conda run --no-capture-output -n rlgpu \
+  python scripts/calibrate_eye_on_base.py
+```
+
+脚本同样不会创建 RTDE control 或发送运动命令。输出的 `eye_on_base.yaml` 保存
+`T_base_camera`，原始样本和闭环残差位于 `resources/calibration/eye_on_base_sessions/`。
+固定相机、棋盘安装或 active TCP 在采样期间发生变化都会使结果无效。
+
 普通棋盘格存在 180° 朝向歧义；采样时保持同一物理角作为图像左上方向，不要让棋盘在
 画面中翻转 180°。若无法保证，应改用带 ID 的 ChArUco 标定板。
 
-部署时会在每回合检测前后各读取一次 RTDE TCP pose，只有相机帧被两个静止姿态夹住时
-才接受检测。YOLO bbox 中心结合对齐深度和相机内参反投影，再通过
-`T_base_tcp · T_tcp_camera` 转到 UR base。
+每回合先用 `T_base_tcp · T_tcp_camera` 得到腕部定位，再用固定 `T_base_camera` 定位；两者
+相差不超过 `0.05 m` 才会启动策略。在线跟踪使用最近预测位置关联同类目标，默认门限
+`0.25 m`；位置/速度 EMA、预测时长和最大状态年龄均可在 `tracking` 下现场调节。
 
-### 5. 只读 dry-run
+### 6. 只读 dry-run
 
 先运行离线 preflight；它会逐项列出尚缺的 ONNX、YOLO、标定文件和 Python 依赖：
 
@@ -286,7 +419,8 @@ conda run --no-capture-output -n rlgpu \
 ```
 
 默认模式只连接 RTDE receive 和 Robotiq `GET POS`，不创建 RTDE control、不激活夹爪、
-不发送停止或运动命令：
+不发送停止或运动命令。每回合开始前只读核对机械臂已由人工置于训练 home、夹爪
+`POS<=5`，不满足就终止：
 
 ```bash
 conda run --no-capture-output -n rlgpu \
@@ -300,11 +434,13 @@ conda run --no-capture-output -n rlgpu \
 策略目标按训练频率 60 Hz 更新；实机层用独立的 500 Hz `servoJ` 线程持续保持最新关节
 目标。Robotiq 绝对位置目标限频到 20 Hz，避免其 URCap socket 往返阻塞机械臂伺服。
 
-### 6. 解锁实机运动
+### 7. 解锁实机运动
 
 实机发送控制需要同时满足三项：配置中设置 `safety.allow_motion: true`、命令行加入
 `--execute`、启动时人工输入大写 `ARM`。运行期间会检查保护/急停、状态新鲜度、关节
 速度、硬限位、单步增量、跟踪误差和掌心工作空间；异常或 `Ctrl-C` 会进入停止清理。
+每个回合检测前还会要求输入大写 `HOME`，随后先张开空夹爪，再以配置的低速 `moveJ`
+回到训练初始关节姿态；到位误差和静止状态确认通过后才采集相机帧。
 
 ```bash
 conda run --no-capture-output -n rlgpu \
@@ -316,7 +452,12 @@ conda run --no-capture-output -n rlgpu \
 ### 尚需现场提供/验收
 
 - 经仿真选择并导出的 UR5e 69→7 ONNX（当前仓库没有该文件）。
-- YOLO 权重、目标 class、RealSense 序列号，以及现场生成的 `eye_on_hand.yaml`。
+- YOLO 权重、目标 class、两台 RealSense 序列号，以及现场生成的 `eye_on_hand.yaml` 和
+  `eye_on_base.yaml`。
 - 真实桶中心、物体 scale/初始姿态约定和保守的关节/笛卡尔安全边界。
-- UR 控制器启用 External Control/Remote 模式、63352 端口上的 Robotiq URCap 服务。
-- 使用同一 ONNX 的 UR5e sim2sim 轨迹对齐；通过后再做只读 dry-run 和低速实机测试。
+- 控制柜侧外部 RS-485 接线与 24 V 供电已验收；Robotiq Grippers URCap 已激活并在
+  `63352` 提供服务。PC 不安装串口驱动或 Modbus 后端。
+- UR 控制器启用 Remote Control 及 Dashboard、Primary/Secondary、Real-time、RTDE 服务；
+  不需要 External Control URCap。专用网络按 `192.168.1.10/24 ↔ 192.168.1.20/24` 验收。
+- 使用最终 ONNX 采集 Isaac reference 并审阅 UR5e sim2sim 数值报告；之后再做只读
+  dry-run 和低速实机测试。

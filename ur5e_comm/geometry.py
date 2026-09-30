@@ -335,6 +335,138 @@ def robust_calibrate_eye_on_hand(
     return estimate, final_inliers, mean_board, translation_errors, rotation_errors
 
 
+def calibrate_eye_on_base(base_to_tcp, camera_to_board, method="shah"):
+    """Solve fixed-camera calibration and return ``T_base_camera, T_tcp_board``.
+
+    The checkerboard is rigidly attached to the TCP but its mounting transform
+    is not required.  Samples satisfy ``T_base_tcp * T_tcp_board =
+    T_base_camera * T_camera_board``.
+    """
+    try:
+        import cv2
+    except ImportError as error:
+        raise RuntimeError("OpenCV is required for eye-on-base calibration") from error
+    robot_poses = [as_transform(item, "base_to_tcp") for item in base_to_tcp]
+    board_poses = [as_transform(item, "camera_to_board") for item in camera_to_board]
+    if len(robot_poses) != len(board_poses) or len(robot_poses) < 3:
+        raise ValueError("eye-on-base calibration requires at least three paired poses")
+    methods = {
+        "shah": cv2.CALIB_ROBOT_WORLD_HAND_EYE_SHAH,
+        "li": cv2.CALIB_ROBOT_WORLD_HAND_EYE_LI,
+    }
+    method_name = str(method).lower()
+    if method_name not in methods:
+        raise ValueError("unknown robot-world/hand-eye method {!r}".format(method))
+
+    # Map the fixed-camera/moving-target problem onto OpenCV's notation:
+    # world=UR base, camera=TCP, base=fixed camera, gripper=board.
+    tcp_to_base = [invert_transform(item) for item in robot_poses]
+    board_to_camera = [invert_transform(item) for item in board_poses]
+    base_rotation, base_translation, board_rotation, board_translation = (
+        cv2.calibrateRobotWorldHandEye(
+            [item[:3, :3] for item in tcp_to_base],
+            [item[:3, 3] for item in tcp_to_base],
+            [item[:3, :3] for item in board_to_camera],
+            [item[:3, 3] for item in board_to_camera],
+            method=methods[method_name],
+        )
+    )
+    base_to_camera = make_transform(base_rotation, np.asarray(base_translation).reshape(3))
+    tcp_to_board = make_transform(board_rotation, np.asarray(board_translation).reshape(3))
+    return base_to_camera, tcp_to_board
+
+
+def eye_on_base_residuals(base_to_tcp, camera_to_board, base_to_camera, tcp_to_board):
+    """Return closure errors for paired fixed-camera calibration samples."""
+    base_to_camera = as_transform(base_to_camera, "base_to_camera")
+    tcp_to_board = as_transform(tcp_to_board, "tcp_to_board")
+    robot_poses = [as_transform(item, "base_to_tcp") for item in base_to_tcp]
+    board_poses = [as_transform(item, "camera_to_board") for item in camera_to_board]
+    if len(robot_poses) != len(board_poses) or not robot_poses:
+        raise ValueError("paired eye-on-base samples are required")
+    closure = [
+        invert_transform(robot_pose.dot(tcp_to_board)).dot(
+            base_to_camera.dot(board_pose)
+        )
+        for robot_pose, board_pose in zip(robot_poses, board_poses)
+    ]
+    translation_errors = np.asarray(
+        [np.linalg.norm(item[:3, 3]) for item in closure], dtype=np.float64
+    )
+    rotation_errors = np.asarray(
+        [rotation_angle_degrees(item) for item in closure], dtype=np.float64
+    )
+    return translation_errors, rotation_errors
+
+
+def robust_calibrate_eye_on_base(
+    base_to_tcp,
+    camera_to_board,
+    method="shah",
+    max_translation_error_m=0.01,
+    max_rotation_error_deg=2.0,
+    minimum_inliers=10,
+):
+    """Solve, reject inconsistent samples once, and refine eye-on-base calibration."""
+    robot_poses = [as_transform(item, "base_to_tcp") for item in base_to_tcp]
+    board_poses = [as_transform(item, "camera_to_board") for item in camera_to_board]
+    if len(robot_poses) != len(board_poses):
+        raise ValueError("base_to_tcp and camera_to_board sample counts differ")
+    minimum_inliers = int(minimum_inliers)
+    if minimum_inliers < 3 or len(robot_poses) < minimum_inliers:
+        raise ValueError("not enough samples for the requested minimum inliers")
+    base_to_camera, tcp_to_board = calibrate_eye_on_base(
+        robot_poses, board_poses, method
+    )
+    translation_errors, rotation_errors = eye_on_base_residuals(
+        robot_poses, board_poses, base_to_camera, tcp_to_board
+    )
+    inliers = np.logical_and(
+        translation_errors <= float(max_translation_error_m),
+        rotation_errors <= float(max_rotation_error_deg),
+    )
+    if int(inliers.sum()) < minimum_inliers:
+        raise RuntimeError(
+            "eye-on-base consistency left only {}/{} inliers".format(
+                int(inliers.sum()), len(inliers)
+            )
+        )
+    base_to_camera, tcp_to_board = calibrate_eye_on_base(
+        [pose for pose, keep in zip(robot_poses, inliers) if keep],
+        [pose for pose, keep in zip(board_poses, inliers) if keep],
+        method,
+    )
+    translation_errors, rotation_errors = eye_on_base_residuals(
+        robot_poses, board_poses, base_to_camera, tcp_to_board
+    )
+    final_inliers = np.logical_and(
+        translation_errors <= float(max_translation_error_m),
+        rotation_errors <= float(max_rotation_error_deg),
+    )
+    if int(final_inliers.sum()) < minimum_inliers:
+        raise RuntimeError(
+            "refined eye-on-base consistency left only {}/{} inliers".format(
+                int(final_inliers.sum()), len(final_inliers)
+            )
+        )
+    if not np.array_equal(final_inliers, inliers):
+        base_to_camera, tcp_to_board = calibrate_eye_on_base(
+            [pose for pose, keep in zip(robot_poses, final_inliers) if keep],
+            [pose for pose, keep in zip(board_poses, final_inliers) if keep],
+            method,
+        )
+        translation_errors, rotation_errors = eye_on_base_residuals(
+            robot_poses, board_poses, base_to_camera, tcp_to_board
+        )
+    return (
+        base_to_camera,
+        tcp_to_board,
+        final_inliers,
+        translation_errors,
+        rotation_errors,
+    )
+
+
 def estimate_eye_on_base(
     qr_corners_px: np.ndarray,
     camera_matrix: np.ndarray,
@@ -382,10 +514,50 @@ def estimate_eye_on_base(
     return as_transform(base_from_camera, "base_to_camera"), rms
 
 
-def load_eye_on_base(path) -> np.ndarray:
+def load_eye_on_base(
+    path,
+    expected_checkerboard=None,
+    expected_camera_model=None,
+    expected_camera_serial=None,
+) -> np.ndarray:
     payload = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(payload, dict) or "base_to_camera" not in payload:
-        raise ValueError("Calibration file must contain base_to_camera")
+    if not isinstance(payload, dict) or payload.get("calibration_type") != "eye_on_base":
+        raise ValueError("Calibration file must declare calibration_type: eye_on_base")
+    if "base_to_camera" not in payload:
+        raise ValueError("Eye-on-base calibration must contain base_to_camera")
+    metadata = payload.get("metadata", {})
+    if expected_checkerboard is not None:
+        actual = metadata.get("checkerboard", {})
+        for key in ("model", "columns", "rows"):
+            if str(actual.get(key)) != str(expected_checkerboard.get(key)):
+                raise ValueError(
+                    "Calibration checkerboard {} mismatch: expected {!r}, found {!r}".format(
+                        key, expected_checkerboard.get(key), actual.get(key)
+                    )
+                )
+        if not np.isclose(
+            float(actual.get("square_size_m", np.nan)),
+            float(expected_checkerboard["square_size_m"]),
+            rtol=0.0,
+            atol=1e-9,
+        ):
+            raise ValueError("Calibration checkerboard square_size_m does not match configuration")
+    if expected_camera_model is not None:
+        actual_model = str(metadata.get("camera", {}).get("model", ""))
+        if str(expected_camera_model).lower() not in actual_model.lower():
+            raise ValueError(
+                "Calibration camera mismatch: expected {!r}, found {!r}".format(
+                    expected_camera_model, actual_model
+                )
+            )
+    if expected_camera_serial is not None:
+        actual_serial = str(metadata.get("camera", {}).get("serial", ""))
+        if str(expected_camera_serial) != actual_serial:
+            raise ValueError(
+                "Calibration camera serial mismatch: expected {!r}, found {!r}".format(
+                    str(expected_camera_serial), actual_serial
+                )
+            )
     return as_transform(payload["base_to_camera"], "base_to_camera")
 
 
@@ -427,8 +599,9 @@ def save_eye_on_base(path, base_to_camera: np.ndarray, metadata=None) -> None:
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "format_version": 1,
-        "convention": "T_base_camera maps camera-frame metres into UR base frame",
+        "format_version": 2,
+        "calibration_type": "eye_on_base",
+        "convention": "T_base_camera maps RealSense color optical-frame metres into the UR base frame",
         "base_to_camera": as_transform(base_to_camera).tolist(),
     }
     if metadata:
