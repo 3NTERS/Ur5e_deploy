@@ -83,6 +83,17 @@ task:
   object_scale: [1.0, 1.0, 1.0]
   palm_center_offset: [0.0, 0.0, 0.145]
 
+# Applied only when policy metadata declares deployment_class: smoke_only.
+# These values never relax the production profile above or the safety workspace below.
+smoke_policy:
+  arm_action_scale: 0.05
+  max_arm_step: 0.008
+  max_joint_velocity: 0.5
+  max_target_error: 0.06
+  gripper_speed: 32
+  gripper_force: 20
+  goal_offset_m: [0.0, 0.0, 0.12]
+
 safety:
   # Both this flag and CLI --execute are required before commands can be sent.
   allow_motion: false

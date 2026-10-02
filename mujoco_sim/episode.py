@@ -1,6 +1,6 @@
 import csv
 from pathlib import Path
-from time import perf_counter
+from time import perf_counter, sleep
 
 import numpy as np
 
@@ -14,10 +14,18 @@ class EpisodeRunner:
     def stop(self):
         self.stopped = True
 
-    def run(self, steps=600, viewer=None, npz_path=None, csv_path=None):
+    def run(
+        self,
+        steps=600,
+        viewer=None,
+        npz_path=None,
+        csv_path=None,
+        initial=None,
+        playback_speed=1.0,
+    ):
         self.stopped = False
         self.policy.reset()
-        observation = self.adapter.reset()
+        observation = self.adapter.reset(initial=initial)
         observations, actions, targets, times = [], [], [], []
         started = perf_counter()
         for step in range(steps):
@@ -34,6 +42,9 @@ class EpisodeRunner:
             times.append(self.adapter.data.time)
             if viewer is not None:
                 viewer.sync()
+                remaining = self.adapter.data.time / playback_speed - (perf_counter() - started)
+                if remaining > 0.0:
+                    sleep(remaining)
         elapsed = perf_counter() - started
         result = {
             "observation": np.asarray(observations, dtype=np.float32),
@@ -49,7 +60,7 @@ class EpisodeRunner:
             path = Path(csv_path)
             path.parent.mkdir(parents=True, exist_ok=True)
             with path.open("w", newline="", encoding="utf-8") as stream:
-                writer = csv.writer(stream)
+                writer = csv.writer(stream, lineterminator="\n")
                 writer.writerow(["step", "sim_time", *[f"action_{i}" for i in range(23)], *[f"target_{i}" for i in range(23)]])
                 for index, (time, action, target) in enumerate(zip(result["sim_time"], result["action"], result["target"])):
                     writer.writerow([index, time, *action, *target])

@@ -6,6 +6,8 @@ import yaml
 
 
 FINGERTIPS = ("pf4_tip", "mf4_tip", "if4_tip", "th4_tip")
+OBJECT_BASE_SIZE = 0.04
+OBJECT_DENSITY = 400.0
 
 
 def wxyz_to_xyzw(quaternion):
@@ -37,19 +39,26 @@ class RokaeAdapter:
         self.upper = np.asarray([item["upper"] for item in limits], dtype=np.float64)
         self.qpos_addr = np.asarray([self.model.jnt_qposadr[self._joint_id(name)] for name in self.joint_names])
         self.dof_addr = np.asarray([self.model.jnt_dofadr[self._joint_id(name)] for name in self.joint_names])
+        self.physical_lower = np.asarray([self.model.jnt_range[self._joint_id(name), 0] for name in self.joint_names])
+        self.physical_upper = np.asarray([self.model.jnt_range[self._joint_id(name), 1] for name in self.joint_names])
         self.actuator_ids = np.asarray(
             [mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, f"{name}_position") for name in self.joint_names]
         )
         if np.any(self.actuator_ids < 0):
             raise ValueError("MJCF does not expose all 23 position actuators")
         self.palm_site = self._site_id("palm_center")
+        self.palm_body = self._body_id("xMatePro7_link7")
         self.tip_sites = np.asarray([self._site_id(name) for name in FINGERTIPS])
         self.object_body = self._body_id("object")
         self.bucket_body = self._body_id("bucket")
         self.goal_site = self._site_id("goal")
         self.object_joint = self._joint_id("object_freejoint")
         self.object_qpos_addr = self.model.jnt_qposadr[self.object_joint]
+        self.object_dof_addr = self.model.jnt_dofadr[self.object_joint]
+        self.object_geom = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_GEOM, "object_geom")
         self.default_qpos = np.asarray(self.metadata["control"]["default_joint_position"], dtype=np.float64)
+        self.default_qpos = np.clip(self.default_qpos, self.physical_lower, self.physical_upper)
+        self.object_scale = np.ones(3, dtype=np.float64)
         self.progress = 0
         self.successes = 0.0
         self.previous_reward = 0.0
@@ -58,7 +67,7 @@ class RokaeAdapter:
         self.closest_fingertips = np.full(4, np.inf)
         self.furthest_hand = -np.inf
         self.lifted = False
-        self.initial_object_z = 0.555
+        self.initial_object_z = 0.15
 
     def _joint_id(self, name):
         value = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, name)
@@ -78,31 +87,77 @@ class RokaeAdapter:
             raise ValueError(f"Missing body {name}")
         return value
 
-    def reset(self):
+    def _set_object_scale(self, scale):
+        scale = np.asarray(scale, dtype=np.float64)
+        if scale.shape != (3,) or not np.isfinite(scale).all() or np.any(scale <= 0.0):
+            raise ValueError(f"Expected positive finite object scale (3,), got {scale}")
+        dimensions = OBJECT_BASE_SIZE * scale
+        mass = OBJECT_DENSITY * float(np.prod(dimensions))
+        self.object_scale = scale.copy()
+        self.model.geom_size[self.object_geom, :3] = 0.5 * dimensions
+        self.model.body_mass[self.object_body] = mass
+        self.model.body_inertia[self.object_body] = mass / 12.0 * np.asarray(
+            [
+                dimensions[1] ** 2 + dimensions[2] ** 2,
+                dimensions[0] ** 2 + dimensions[2] ** 2,
+                dimensions[0] ** 2 + dimensions[1] ** 2,
+            ]
+        )
+        mujoco.mj_setConst(self.model, self.data)
+
+    def reset(self, initial=None, object_scale=None):
         mujoco.mj_resetData(self.model, self.data)
-        self.data.qpos[self.qpos_addr] = self.default_qpos
-        self.data.qvel[self.dof_addr] = 0.0
-        self.previous_target = self.default_qpos.copy()
+        self.initial_object_z = 0.15
+        if initial is not None and object_scale is None:
+            object_scale = initial.get("object_scale")
+        self._set_object_scale(np.ones(3) if object_scale is None else object_scale)
+        if initial is None:
+            joint_position = self.default_qpos
+            joint_velocity = np.zeros(self.action_dim)
+            joint_target = self.default_qpos
+        else:
+            joint_position = np.asarray(initial["joint_position"], dtype=np.float64)
+            joint_velocity = np.asarray(initial["joint_velocity"], dtype=np.float64)
+            joint_target = np.asarray(initial["joint_target"], dtype=np.float64)
+        self.data.qpos[self.qpos_addr] = joint_position
+        self.data.qvel[self.dof_addr] = joint_velocity
+        self.previous_target = joint_target.copy()
         self.data.ctrl[self.actuator_ids] = self.previous_target
-        side = -1.0 if self.rng.random() < 0.5 else 1.0
-        self.model.body_pos[self.bucket_body] = [self.rng.uniform(0.5, 1.5), side * self.rng.uniform(0.5, 0.9), 0.45]
         address = self.object_qpos_addr
-        self.data.qpos[address : address + 3] = [
-            0.75 + self.rng.uniform(-0.05, 0.05),
-            self.rng.uniform(-0.05, 0.05),
-            self.initial_object_z + self.rng.uniform(-0.01, 0.01),
-        ]
-        quaternion = self.rng.normal(size=4)
-        self.data.qpos[address + 3 : address + 7] = quaternion / np.linalg.norm(quaternion)
-        self.progress = 0
-        self.successes = 0.0
+        if initial is None:
+            side = -1.0 if self.rng.random() < 0.5 else 1.0
+            goal_position = np.asarray(
+                [self.rng.uniform(0.5, 1.5), side * self.rng.uniform(0.5, 0.9), 0.05]
+            )
+            self.data.qpos[address : address + 3] = [
+                0.8 + self.rng.uniform(-0.05, 0.05),
+                self.rng.uniform(-0.05, 0.05),
+                self.initial_object_z + self.rng.uniform(-0.01, 0.01),
+            ]
+            quaternion = self.rng.normal(size=4)
+            self.data.qpos[address + 3 : address + 7] = quaternion / np.linalg.norm(quaternion)
+            self.data.qvel[self.object_dof_addr : self.object_dof_addr + 6] = 0.0
+        else:
+            object_state = np.asarray(initial["object_state"], dtype=np.float64)
+            self.data.qpos[address : address + 3] = object_state[:3]
+            self.data.qpos[address + 3 : address + 7] = object_state[[6, 3, 4, 5]]
+            self.data.qvel[self.object_dof_addr : self.object_dof_addr + 3] = object_state[7:10]
+            self.data.qvel[self.object_dof_addr + 3 : self.object_dof_addr + 6] = object_state[10:13]
+            goal_position = np.asarray(initial["goal_position"], dtype=np.float64)
+            self.initial_object_z = float(initial.get("object_initial_z", 0.15))
+        self.model.body_pos[self.bucket_body] = goal_position - self.model.site_pos[self.goal_site]
+        self.progress = int(initial.get("progress", 0)) if initial is not None else 0
+        self.successes = float(initial.get("successes", 0.0)) if initial is not None else 0.0
         self.previous_reward = 0.0
         self.closest_keypoint = np.inf
         self.closest_fingertips[:] = np.inf
         self.furthest_hand = -np.inf
         self.lifted = False
         mujoco.mj_forward(self.model, self.data)
-        return self.observe()
+        observation = self.observe()
+        observation[-1] = 0.0
+        self.previous_reward = 0.0
+        return observation
 
     def _velocity(self, object_type, object_id):
         value = np.empty(6, dtype=np.float64)
@@ -115,7 +170,9 @@ class RokaeAdapter:
         scaled_qpos = 2.0 * (qpos - self.lower) / (self.upper - self.lower) - 1.0
         palm_pos = self.data.site_xpos[self.palm_site].copy()
         palm_quat = matrix_to_xyzw(self.data.site_xmat[self.palm_site])
-        palm_linvel, palm_angvel = self._velocity(mujoco.mjtObj.mjOBJ_SITE, self.palm_site)
+        # Isaac writes the link-7 rigid-body velocity into the observation,
+        # while palm_center_pos is a rotated positional offset from that body.
+        palm_linvel, palm_angvel = self._velocity(mujoco.mjtObj.mjOBJ_BODY, self.palm_body)
         object_pos = self.data.xpos[self.object_body].copy()
         object_quat = wxyz_to_xyzw(self.data.xquat[self.object_body])
         object_linvel, object_angvel = self._velocity(mujoco.mjtObj.mjOBJ_BODY, self.object_body)
@@ -157,7 +214,7 @@ class RokaeAdapter:
                 fingertips_rel_palm,
                 keypoint_rel_palm,
                 keypoint_rel_goal,
-                np.ones(3),
+                self.object_scale,
                 [closest_keypoint_before_reward],
                 closest_fingertips_before_reward,
                 [float(lifted_before_reward)],

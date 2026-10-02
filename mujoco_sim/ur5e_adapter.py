@@ -1,4 +1,4 @@
-"""MuJoCo adapter for the 69-observation, 7-action Ur5eRobotiq throw task."""
+"""MuJoCo adapter for the 69-observation, 7-action Ur5eRobotiq tasks."""
 
 from pathlib import Path
 
@@ -29,6 +29,8 @@ class Ur5eThrowAdapter:
     def __init__(self, scene_path, metadata_path, seed=0, object_scale=(1.0, 1.0, 1.0)):
         self.scene_path = Path(scene_path)
         self.metadata = yaml.safe_load(Path(metadata_path).read_text(encoding="utf-8"))
+        self.task = str(self.metadata.get("task", "Ur5eRobotiqThrow"))
+        self.is_grasp = self.task == "Ur5eRobotiqGrasp"
         self.model = mujoco.MjModel.from_xml_path(str(self.scene_path))
         self.data = mujoco.MjData(self.model)
         self.rng = np.random.RandomState(int(seed))
@@ -50,7 +52,8 @@ class Ur5eThrowAdapter:
         self.object_joint = self._joint_id("object_freejoint")
         self.object_qpos_addr = int(self.model.jnt_qposadr[self.object_joint])
         self.object_dof_addr = int(self.model.jnt_dofadr[self.object_joint])
-        self.bucket_body = self._body_id("bucket")
+        bucket_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "bucket")
+        self.bucket_body = None if bucket_id < 0 else bucket_id
         self.goal_site = self._site_id("goal")
         self.home = np.asarray((-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0.0), dtype=np.float64)
         self.object_scale = np.asarray(object_scale, dtype=np.float64)
@@ -104,6 +107,14 @@ class Ur5eThrowAdapter:
         return velocity[3:6].copy(), velocity[0:3].copy()
 
     def _default_initial_state(self):
+        if self.is_grasp:
+            return (
+                np.concatenate((self.home, np.zeros(6))),
+                np.zeros(12),
+                np.asarray((0.55, 0.0, 0.15)),
+                np.asarray((0.0, 0.0, 0.0, 1.0)),
+                np.asarray((0.55, 0.0, 0.27)),
+            )
         default_qpos = np.concatenate((self.home, np.zeros(6)))
         delta = self.lower - default_qpos + (self.upper - self.lower) * self.rng.uniform(0.0, 1.0, 12)
         qpos = default_qpos + 0.05 * delta
@@ -146,7 +157,8 @@ class Ur5eThrowAdapter:
         self.data.qpos[address:address + 3] = object_position
         self.data.qpos[address + 3:address + 7] = xyzw_to_wxyz(object_quaternion)
         self.data.qvel[self.object_dof_addr:self.object_dof_addr + 6] = object_velocity
-        self.model.body_pos[self.bucket_body] = [goal[0], goal[1], goal[2] - 0.05]
+        if self.bucket_body is not None:
+            self.model.body_pos[self.bucket_body] = [goal[0], goal[1], goal[2] - 0.05]
         self.model.site_pos[self.goal_site] = goal
         self.previous_target = joint_target.copy()
         self.data.ctrl[self.arm_actuator_ids] = joint_target[:6]
@@ -222,12 +234,14 @@ class Ur5eThrowAdapter:
         fingertip_delta = np.clip(self.closest_fingertips - fingertip_distances, 0.0, 10.0)
         fingertip_reward = float(fingertip_delta.sum()) * (not self.lifted) * 50.0
         keypoint_delta = float(np.clip(self.closest_keypoint - keypoint_distance, 0.0, 100.0))
-        keypoint_reward = keypoint_delta * self.lifted * 200.0
+        keypoint_reward = 0.0 if self.is_grasp else keypoint_delta * self.lifted * 200.0
         self.closest_fingertips = np.minimum(self.closest_fingertips, fingertip_distances)
         self.furthest_hand = max(self.furthest_hand, float(fingertip_distances[0]))
         self.closest_keypoint = min(self.closest_keypoint, keypoint_distance)
-        near_goal = keypoint_distance <= 0.075 * 1.5
-        if near_goal:
+        near_goal = (keypoint_distance <= 0.075 * 1.5) if not self.is_grasp else False
+        if self.is_grasp and self.lifted and not was_lifted:
+            self.successes += 1.0
+        elif near_goal:
             self.successes += 1.0
         penalty = -0.003 * np.abs(qvel[:6]).sum() - 0.0003 * np.abs(qvel[6:]).sum()
         return fingertip_reward + lifting + lift_bonus + keypoint_reward + 1000.0 * near_goal + penalty
@@ -272,3 +286,6 @@ class Ur5eThrowAdapter:
     @property
     def done(self):
         return self.progress >= self.episode_length or self.data.xpos[self.object_body, 2] < 0.0
+
+
+Ur5eGraspAdapter = Ur5eThrowAdapter

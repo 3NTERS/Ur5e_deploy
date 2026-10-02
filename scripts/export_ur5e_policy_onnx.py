@@ -122,23 +122,39 @@ def validate_onnx(path, wrapper, inputs, torch, provider):
     if provider_name not in ort.get_available_providers():
         raise RuntimeError("{} unavailable: {}".format(provider_name, ort.get_available_providers()))
     session = ort.InferenceSession(str(path), providers=[provider_name])
-    with torch.no_grad():
-        expected = wrapper(*inputs)
-    actual = session.run(
-        None,
-        {name: tensor.detach().numpy() for name, tensor in zip(
-            ("observation", "hidden_state", "cell_state"), inputs
-        )},
-    )
-    errors = {
-        name: float(np.max(np.abs(reference.detach().numpy() - value)))
-        for name, reference, value in zip(
-            ("action", "next_hidden_state", "next_cell_state"), expected, actual
+    generator = torch.Generator().manual_seed(0)
+    observations = torch.randn(5, 69, generator=generator)
+    torch_hidden, torch_cell = inputs[1], inputs[2]
+    ort_hidden = torch_hidden.detach().numpy()
+    ort_cell = torch_cell.detach().numpy()
+    errors = {name: 0.0 for name in ("action", "next_hidden_state", "next_cell_state")}
+    action_sequence = []
+    for observation in observations:
+        observation = observation.unsqueeze(0)
+        with torch.no_grad():
+            expected = wrapper(observation, torch_hidden, torch_cell)
+        actual = session.run(
+            None,
+            {
+                "observation": observation.numpy(),
+                "hidden_state": ort_hidden,
+                "cell_state": ort_cell,
+            },
         )
-    }
+        for name, reference, value in zip(errors, expected, actual):
+            errors[name] = max(errors[name], float(np.max(np.abs(reference.numpy() - value))))
+        action_sequence.append(actual[0][0].copy())
+        torch_hidden, torch_cell = expected[1], expected[2]
+        ort_hidden, ort_cell = actual[1], actual[2]
     if max(errors.values()) > 1e-4:
         raise RuntimeError("ONNX numerical validation failed: {}".format(errors))
-    return {"provider": provider_name, "max_abs_error_by_output": errors, "passed": True}
+    return {
+        "provider": provider_name,
+        "sequence_steps": 5,
+        "max_abs_error_by_output": errors,
+        "action_span": float(np.ptp(np.asarray(action_sequence), axis=0).max()),
+        "passed": True,
+    }
 
 
 def main():
@@ -146,12 +162,16 @@ def main():
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument(
         "--train-config",
-        default=str(DEFAULT_SOURCE / "isaacgymenvs/cfg/train/Ur5eRobotiqLSTMPPO.yaml"),
+        default=str(DEFAULT_SOURCE / "isaacgymenvs/cfg/train/Ur5eRobotiqGraspLSTMPPO.yaml"),
     )
     parser.add_argument("--output", default=str(ROOT / "resources/models/ur5e_robotiq/policy.onnx"))
     parser.add_argument("--metadata", default=str(ROOT / "resources/models/ur5e_robotiq/policy.meta.yaml"))
     parser.add_argument("--provider", choices=("cpu", "cuda"), default="cpu")
     parser.add_argument("--opset", type=int, default=12)
+    parser.add_argument(
+        "--inertia-report",
+        default=str(ROOT / "resources/reports/ur5e_inertia_audit.json"),
+    )
     args = parser.parse_args()
 
     try:
@@ -197,6 +217,40 @@ def main():
         else ROOT / "resources/models/ur5e_robotiq/policy.meta.yaml"
     )
     metadata = yaml.safe_load(template_path.read_text(encoding="utf-8"))
+    inertia_report = Path(args.inertia_report)
+    if not inertia_report.is_file():
+        raise FileNotFoundError("Missing inertia report: {}".format(inertia_report))
+    metadata["format_version"] = 2
+    metadata["task"] = "Ur5eRobotiqGrasp"
+    metadata["deployment_class"] = "smoke_only"
+    metadata["source"] = {
+        "task_file": str(DEFAULT_SOURCE / "isaacgymenvs/tasks/ur5e_robotiq/ur5e_robotiq_grasp.py"),
+        "task_config": str(DEFAULT_SOURCE / "isaacgymenvs/cfg/task/Ur5eRobotiqGrasp.yaml"),
+        "train_config": str(Path(args.train_config).resolve()),
+    }
+    metadata["training"] = {
+        "seed": 0,
+        "num_environments": 256,
+        "horizon": 16,
+        "minibatch_size": 4096,
+        "lstm_units": int(rnn["units"]),
+        "epochs": 30,
+    }
+    metadata["task_contract"] = {
+        "subtask": "grasp",
+        "policy_period_s": 0.01667,
+        "episode_steps": 600,
+        "object_size_m": [0.04, 0.04, 0.04],
+        "object_density_kg_m3": 567.0,
+        "goal_mode": "initial_object_offset",
+        "goal_offset_m": [0.0, 0.0, 0.12],
+        "success_lift_m": 0.10,
+        "randomization": False,
+    }
+    metadata["inertia_audit"] = {
+        "path": str(inertia_report.resolve()),
+        "sha256": sha256(inertia_report),
+    }
     metadata["checkpoint"] = {
         "path": str(Path(args.checkpoint).resolve()),
         "sha256": sha256(args.checkpoint),

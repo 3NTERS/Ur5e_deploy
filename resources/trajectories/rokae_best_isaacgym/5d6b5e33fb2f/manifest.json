@@ -1,0 +1,11 @@
+{
+  "sha256": "5d6b5e33fb2f937e80f9c361d587dbe5782c4ff8e4e8e77322925ed396ba8d46",
+  "source_group": "1205LSTM",
+  "best_directory": "best1",
+  "checkpoint": "/home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/train_dir/1205LSTM/best1/AllegroKuka_best_obj_000000027.65112_iter_0499_policy002_frame9980018688.pth",
+  "checkpoint_objective": 27.65112,
+  "task_kind": "throw",
+  "evaluation_task": "AllegroRokaeLSTM_throw",
+  "alias_count": 1,
+  "aliases": "/home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/train_dir/1205LSTM/best1/AllegroKuka_best_obj_000000027.65112_iter_0499_policy002_frame9980018688.pth"
+}

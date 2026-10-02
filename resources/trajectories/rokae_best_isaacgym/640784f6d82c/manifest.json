@@ -1,0 +1,11 @@
+{
+  "sha256": "640784f6d82c3d544d6971d050bde0db869a9c7c5ce4628b3b8c83ba78365242",
+  "source_group": "1016_LSTM_throw_v1_pbt_2p",
+  "best_directory": "best0",
+  "checkpoint": "/home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/train_dir/1016_LSTM_throw_v1_pbt_2p/1016_LSTM_throw_v1_pbt_2p_/runs/workspace_allegro_kuka/best0/AllegroKuka_best_obj_000000001.31323_iter_0020_policy000_frame400031744.pth",
+  "checkpoint_objective": 1.31323,
+  "task_kind": "throw",
+  "evaluation_task": "AllegroRokaeLSTM_throw",
+  "alias_count": 1,
+  "aliases": "/home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/train_dir/1016_LSTM_throw_v1_pbt_2p/1016_LSTM_throw_v1_pbt_2p_/runs/workspace_allegro_kuka/best0/AllegroKuka_best_obj_000000001.31323_iter_0020_policy000_frame400031744.pth"
+}

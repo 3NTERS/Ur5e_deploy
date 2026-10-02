@@ -1,6 +1,7 @@
 """Build a self-contained Allegro-Rokae MJCF from the training URDF."""
 
 import argparse
+import math
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -10,9 +11,9 @@ import mujoco
 
 JOINTS = [
     *(f"xmate_joint_{index}" for index in range(1, 8)),
+    *(f"jif{index}" for index in range(1, 5)),
     *(f"jmf{index}" for index in range(1, 5)),
     *(f"jpf{index}" for index in range(1, 5)),
-    *(f"jif{index}" for index in range(1, 5)),
     *(f"jth{index}" for index in range(1, 5)),
 ]
 
@@ -88,8 +89,14 @@ def build(source, output):
     option.set("integrator", "implicitfast")
 
     default = ET.SubElement(root, "default")
-    ET.SubElement(default, "joint", damping="5", armature="0")
-    ET.SubElement(default, "geom", friction="1 0.005 0.0001", condim="4")
+    ET.SubElement(default, "joint", armature="0")
+    ET.SubElement(
+        default,
+        "geom",
+        friction="1 0.005 0.0001",
+        condim="4",
+        margin="0.002",
+    )
 
     world = root.find("worldbody")
     for body in world.iter("body"):
@@ -99,22 +106,36 @@ def build(source, output):
             break
     else:
         raise ValueError("Converted URDF is missing xMatePro7_base_free_joint")
+    for body in world.iter("body"):
+        body.set("gravcomp", "1")
+    for geom in world.iter("geom"):
+        if geom.get("contype", "1") != "0" or geom.get("conaffinity", "1") != "0":
+            geom.set("contype", "1")
+            geom.set("conaffinity", "6")
+
     ET.SubElement(world, "light", pos="0 0 3", directional="true")
-    ET.SubElement(world, "geom", name="ground", type="plane", size="3 3 0.1", rgba="0.2 0.3 0.4 1")
-    table = ET.SubElement(world, "body", name="table", pos="0.8 0 0.38")
-    ET.SubElement(table, "geom", type="box", size="0.2 0.225 0.15", rgba="0.6 0.4 0.25 1")
-    obj = ET.SubElement(world, "body", name="object", pos="0.75 0 0.555")
+    ET.SubElement(world, "geom", name="ground", type="plane", size="3 3 0.1", contype="4", conaffinity="3", rgba="0.2 0.3 0.4 1")
+    table = ET.SubElement(world, "body", name="table", pos="0.8 0 -0.1")
+    ET.SubElement(table, "geom", type="box", size="0.2375 0.2 0.15", contype="4", conaffinity="3", rgba="0.6 0.4 0.25 1")
+    obj = ET.SubElement(world, "body", name="object", pos="0.8 0 0.15")
     ET.SubElement(obj, "freejoint", name="object_freejoint")
-    ET.SubElement(obj, "geom", name="object_geom", type="box", size="0.025 0.025 0.025", mass="0.125", rgba="0.8 0.2 0.2 1")
-    bucket = ET.SubElement(world, "body", name="bucket", pos="1.0 0.6 0.45")
-    ET.SubElement(bucket, "geom", name="bucket_bottom", type="box", size="0.14 0.14 0.01", rgba="0.2 0.5 0.8 1")
-    for name, pos, size in (
-        ("bucket_left", "0 0.14 0.12", "0.14 0.01 0.12"),
-        ("bucket_right", "0 -0.14 0.12", "0.14 0.01 0.12"),
-        ("bucket_front", "0.14 0 0.12", "0.01 0.14 0.12"),
-        ("bucket_back", "-0.14 0 0.12", "0.01 0.14 0.12"),
-    ):
-        ET.SubElement(bucket, "geom", name=name, type="box", pos=pos, size=size, rgba="0.2 0.5 0.8 1")
+    ET.SubElement(obj, "geom", name="object_geom", type="box", size="0.02 0.02 0.02", mass="0.0256", contype="2", conaffinity="5", rgba="0.8 0.2 0.2 1")
+    bucket = ET.SubElement(world, "body", name="bucket", pos="1.0 0.6 0")
+    ET.SubElement(bucket, "geom", name="bucket_bottom", type="cylinder", pos="0 0 0.006", size="0.077 0.006", contype="4", conaffinity="3", rgba="0.2 0.5 0.8 0.3")
+    for index in range(12):
+        angle = index * 3.141592653589793 / 6.0
+        ET.SubElement(
+            bucket,
+            "geom",
+            name=f"bucket_wall_{index}",
+            type="box",
+            pos=f"{0.094 * math.cos(angle)} {0.094 * math.sin(angle)} 0.1",
+            euler=f"0 0 {angle}",
+            size="0.031 0.006 0.10",
+            contype="4",
+            conaffinity="3",
+            rgba="0.2 0.5 0.8 0.2",
+        )
     ET.SubElement(bucket, "site", name="goal", pos="0 0 0.05", size="0.02", rgba="0 1 0 0.5")
 
     # The fixed hand base is fused into link 7 by MuJoCo's URDF compiler.
@@ -122,8 +143,7 @@ def build(source, output):
         _find_body(root, "xMatePro7_link7"),
         "site",
         name="palm_center",
-        pos="-0.07 0 0.307",
-        quat="0.707388 0 0 -0.706825",
+        pos="0 -0.07 0.16",
         size="0.008",
     )
     offsets = {"pf4": "0.035 0 0", "mf4": "0.035 0 0", "if4": "0.035 0 0", "th4": "0 0.035 0"}
@@ -135,15 +155,19 @@ def build(source, output):
         joint_element = root.find(f".//joint[@name='{joint}']")
         if joint_element is None:
             raise ValueError(f"Converted URDF is missing joint {joint}")
-        joint_element.set("damping", "5")
-        effort = "300" if index < 7 else "10"
+        joint_element.set("damping", "0")
+        effort = "300" if index < 7 else "0.35"
         kp = "140" if index < 7 else "40"
+        kd = "10" if index < 7 else "5"
         ET.SubElement(
             actuator,
-            "position",
+            "general",
             name=f"{joint}_position",
             joint=joint,
-            kp=kp,
+            gaintype="fixed",
+            gainprm=kp,
+            biastype="affine",
+            biasprm=f"0 -{kp} -{kd}",
             ctrllimited="true",
             ctrlrange=joint_element.get("range"),
             forcelimited="true",

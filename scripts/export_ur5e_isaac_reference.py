@@ -26,6 +26,7 @@ def parse_args():
     parser.add_argument("--provider", choices=("cuda", "cpu"), default="cuda")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--steps", type=int, default=600)
+    parser.add_argument("--task", default="Ur5eRobotiqGrasp")
     parser.add_argument("--sim-device", default="cuda:0")
     parser.add_argument("--rl-device", default="cuda:0")
     parser.add_argument("--output", default="resources/trajectories/ur5e_isaac_reference.npz")
@@ -54,7 +55,30 @@ def _capture(env, canonical_indices):
         "fingertip_position": fingertips,
         "object_state": object_state,
         "goal_position": goal_position,
+        "lifted": _numpy(env.lifted_object[0]),
+        "success": _numpy(env.successes[0]),
+        "reward": _numpy(env.rew_buf[0]),
     }
+
+
+def _rigid_body_parameters(env, actor_name):
+    handle = env.gym.find_actor_handle(env.envs[0], actor_name)
+    names = env.gym.get_actor_rigid_body_names(env.envs[0], handle)
+    props = env.gym.get_actor_rigid_body_properties(env.envs[0], handle)
+    mass = np.asarray([prop.mass for prop in props], dtype=np.float64)
+    center = np.asarray([[prop.com.x, prop.com.y, prop.com.z] for prop in props], dtype=np.float64)
+    inertia = np.asarray(
+        [
+            [
+                [prop.inertia.x.x, prop.inertia.y.x, prop.inertia.z.x],
+                [prop.inertia.x.y, prop.inertia.y.y, prop.inertia.z.y],
+                [prop.inertia.x.z, prop.inertia.y.z, prop.inertia.z.z],
+            ]
+            for prop in props
+        ],
+        dtype=np.float64,
+    )
+    return np.asarray(names), mass, center, inertia
 
 
 def main():
@@ -74,7 +98,7 @@ def main():
     np.random.seed(args.seed)
     env = isaacgymenvs.make(
         seed=args.seed,
-        task="Ur5eRobotiq",
+        task=args.task,
         num_envs=1,
         sim_device=args.sim_device,
         rl_device=args.rl_device,
@@ -114,6 +138,9 @@ def main():
         "fingertip_position": [],
         "object_state": [],
         "goal_position": [],
+        "lifted": [],
+        "success": [],
+        "reward": [],
     }
     first = _capture(env, canonical_indices)
     for key, value in first.items():
@@ -149,8 +176,22 @@ def main():
             "quaternion_order": np.asarray("xyzw"),
             "model_sha256": np.asarray(model_sha256(ROOT / args.model)),
             "seed": np.asarray(args.seed, dtype=np.int64),
+            "task": np.asarray(args.task),
         }
     )
+    for prefix, actor_name in (("robot", "ur5e_robotiq"), ("object", "object")):
+        names, mass, center, inertia = _rigid_body_parameters(env, actor_name)
+        payload[prefix + "_body_names"] = names
+        payload[prefix + "_body_mass"] = mass
+        payload[prefix + "_body_com"] = center
+        payload[prefix + "_body_inertia"] = inertia
+    if payload["action"].shape[0]:
+        if float(np.max(np.abs(payload["action"][:, :6]))) < 0.01:
+            raise RuntimeError("Smoke policy arm action never reaches the required 0.01 magnitude")
+        if float(np.ptp(payload["action"][:, 6])) <= 1e-6:
+            raise RuntimeError("Smoke policy gripper action is constant")
+        if not np.any(np.abs(np.diff(payload["joint_target"], axis=0)) > 1e-8):
+            raise RuntimeError("Joint targets did not change")
     for key, value in payload.items():
         if value.dtype.kind not in "SU" and not np.isfinite(value).all():
             raise RuntimeError("Isaac trajectory {} contains NaN or Inf".format(key))

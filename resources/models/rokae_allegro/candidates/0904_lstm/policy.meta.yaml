@@ -1,0 +1,373 @@
+format_version: 1
+task: AllegroRokaeThrow
+variant: lstm
+source:
+  train_config: /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/isaacgymenvs/cfg/train/AllegroRokaeLSTMPPO.yaml
+  task_config: /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/isaacgymenvs/cfg/task/AllegroRokaeLSTM.yaml
+  asset: urdf/kuka_allegro_description/allegro_rokae.urdf
+checkpoint:
+  path: /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/train_dir/0904/AllegroKuka_best_obj_000000021.54675_iter_0059_policy000_frame1180041216.pth
+  sha256: 0c944acf94d73a8ad29e64628b2ea20dd6f0bab9203437da3f277e8504111c2c
+  state_key: model
+  trained_weights_loaded: true
+  epoch: 9004
+  frame: 1180041216
+software:
+  torch: 1.8.1+cu111
+  rl_games: 1.6.1
+  onnx: 1.13.1
+network:
+  model: continuous_a2c_logstd
+  builder: actor_critic
+  shared_actor_critic: true
+  mlp_units:
+  - 768
+  - 512
+  - 256
+  activation: elu
+  recurrent:
+    type: lstm
+    units: 768
+    layers: 1
+    before_mlp: true
+    layer_norm: true
+  full_checkpoint_parameter_count: 3792943
+onnx:
+  path: /home/liang/Workspace/Ur5e_deploy/resources/models/rokae_allegro/candidates/0904_lstm/policy.onnx
+  deterministic: true
+  output_semantics: clamp(actor_mean, -1, 1)
+  validation:
+    checker_passed: true
+    execution_provider: CUDAExecutionProvider
+    active_providers:
+    - CUDAExecutionProvider
+    - CPUExecutionProvider
+    recurrent_steps: 5
+    tf32_disabled: true
+    step_errors:
+    - step: 1
+      max_abs_error_by_output:
+        action: 0.0
+        next_hidden_state: 1.4901161193847656e-07
+        next_cell_state: 1.7881393432617188e-07
+    - step: 2
+      max_abs_error_by_output:
+        action: 4.470348358154297e-07
+        next_hidden_state: 3.5762786865234375e-07
+        next_cell_state: 4.6193599700927734e-07
+    - step: 3
+      max_abs_error_by_output:
+        action: 2.980232238769531e-07
+        next_hidden_state: 4.172325134277344e-07
+        next_cell_state: 5.960464477539062e-07
+    - step: 4
+      max_abs_error_by_output:
+        action: 3.2782554626464844e-07
+        next_hidden_state: 5.662441253662109e-07
+        next_cell_state: 8.642673492431641e-07
+    - step: 5
+      max_abs_error_by_output:
+        action: 2.980232238769531e-07
+        next_hidden_state: 7.152557373046875e-07
+        next_cell_state: 1.0132789611816406e-06
+    max_abs_error_by_output:
+      action: 4.470348358154297e-07
+      next_hidden_state: 7.152557373046875e-07
+      next_cell_state: 1.0132789611816406e-06
+    max_abs_error: 1.0132789611816406e-06
+    tolerance: 0.0001
+    passed: true
+io:
+  observation_dim: 99
+  action_dim: 23
+  inputs:
+  - name: observation
+    shape:
+    - batch
+    - observation_dim
+  - name: hidden_state
+    shape: &id001
+    - 1
+    - batch
+    - 768
+  - name: cell_state
+    shape: *id001
+  outputs:
+  - name: action
+    shape:
+    - batch
+    - action_dim
+  - name: next_hidden_state
+    shape: *id001
+  - name: next_cell_state
+    shape: *id001
+  observation_layout:
+  - name: joint_position_scaled
+    offset: 0
+    size: 23
+    slice: '[0:23]'
+    description: unscale(q, lower, upper), joint order from URDF
+  - name: joint_velocity
+    offset: 23
+    size: 23
+    slice: '[23:46]'
+    description: rad/s, joint order from URDF
+  - name: palm_center_position
+    offset: 46
+    size: 3
+    slice: '[46:49]'
+    description: world xyz, metres
+  - name: palm_quaternion_xyzw_linear_velocity_angular_velocity
+    offset: 49
+    size: 10
+    slice: '[49:59]'
+    description: 4+3+3
+  - name: object_quaternion_xyzw_linear_velocity_angular_velocity
+    offset: 59
+    size: 10
+    slice: '[59:69]'
+    description: 4+3+3
+  - name: fingertip_position_relative_to_palm
+    offset: 69
+    size: 12
+    slice: '[69:81]'
+    description: pf4,mf4,if4,th4; xyz each
+  - name: object_keypoint_relative_to_palm
+    offset: 81
+    size: 3
+    slice: '[81:84]'
+    description: throw task uses object centre only
+  - name: object_keypoint_relative_to_goal
+    offset: 84
+    size: 3
+    slice: '[84:87]'
+    description: throw task uses object centre only
+  - name: object_scale
+    offset: 87
+    size: 3
+    slice: '[87:90]'
+    description: xyz scale
+  - name: closest_keypoint_max_distance
+    offset: 90
+    size: 1
+    slice: '[90:91]'
+    description: episode running minimum
+  - name: closest_fingertip_distances
+    offset: 91
+    size: 4
+    slice: '[91:95]'
+    description: one value per fingertip
+  - name: lifted_object
+    offset: 95
+    size: 1
+    slice: '[95:96]'
+    description: boolean encoded as float
+  - name: log_episode_progress
+    offset: 96
+    size: 1
+    slice: '[96:97]'
+    description: log(progress / 10 + 1)
+  - name: log_success_count
+    offset: 97
+    size: 1
+    slice: '[97:98]'
+    description: log(successes + 1)
+  - name: reward_scaled
+    offset: 98
+    size: 1
+    slice: '[98:99]'
+    description: 0.01 * current reward, inserted after observation construction
+  joint_order:
+  - xmate_joint_1
+  - xmate_joint_2
+  - xmate_joint_3
+  - xmate_joint_4
+  - xmate_joint_5
+  - xmate_joint_6
+  - xmate_joint_7
+  - jmf1
+  - jmf2
+  - jmf3
+  - jmf4
+  - jpf1
+  - jpf2
+  - jpf3
+  - jpf4
+  - jif1
+  - jif2
+  - jif3
+  - jif4
+  - jth1
+  - jth2
+  - jth3
+  - jth4
+  joint_limits:
+  - name: xmate_joint_1
+    lower: -3.0527
+    upper: 3.0527
+    effort: 300.0
+    velocity: 10.0
+  - name: xmate_joint_2
+    lower: -2.0933
+    upper: 2.0933
+    effort: 300.0
+    velocity: 10.0
+  - name: xmate_joint_3
+    lower: -3.0527
+    upper: 3.0527
+    effort: 300.0
+    velocity: 10.0
+  - name: xmate_joint_4
+    lower: -2.0933
+    upper: 2.0933
+    effort: 300.0
+    velocity: 10.0
+  - name: xmate_joint_5
+    lower: -3.0527
+    upper: 3.0527
+    effort: 300.0
+    velocity: 10.0
+  - name: xmate_joint_6
+    lower: -2.0933
+    upper: 2.0933
+    effort: 300.0
+    velocity: 10.0
+  - name: xmate_joint_7
+    lower: -6.283
+    upper: 6.283
+    effort: 300.0
+    velocity: 10.0
+  - name: jmf1
+    lower: -0.57
+    upper: 0.57
+    effort: 10.0
+    velocity: 3.000001
+  - name: jmf2
+    lower: -0.296
+    upper: 1.71
+    effort: 10.0
+    velocity: 3.000001
+  - name: jmf3
+    lower: -0.274
+    upper: 1.809
+    effort: 10.0
+    velocity: 3.000001
+  - name: jmf4
+    lower: -0.327
+    upper: 1.718
+    effort: 10.0
+    velocity: 3.000001
+  - name: jpf1
+    lower: -0.57
+    upper: 0.57
+    effort: 10.0
+    velocity: 3.000001
+  - name: jpf2
+    lower: -0.296
+    upper: 1.71
+    effort: 10.0
+    velocity: 3.000001
+  - name: jpf3
+    lower: -0.274
+    upper: 1.809
+    effort: 10.0
+    velocity: 3.000001
+  - name: jpf4
+    lower: -0.327
+    upper: 1.718
+    effort: 10.0
+    velocity: 3.000001
+  - name: jif1
+    lower: -0.57
+    upper: 0.57
+    effort: 10.0
+    velocity: 3.000001
+  - name: jif2
+    lower: -0.296
+    upper: 1.71
+    effort: 10.0
+    velocity: 3.000001
+  - name: jif3
+    lower: -0.274
+    upper: 1.809
+    effort: 10.0
+    velocity: 3.000001
+  - name: jif4
+    lower: -0.327
+    upper: 1.718
+    effort: 10.0
+    velocity: 3.000001
+  - name: jth1
+    lower: 0.36357
+    upper: 1.4968
+    effort: 10.0
+    velocity: 3.000001
+  - name: jth2
+    lower: -0.20504289
+    upper: 1.13
+    effort: 10.0
+    velocity: 3.000001
+  - name: jth3
+    lower: -0.2897
+    upper: 1.633
+    effort: 10.0
+    velocity: 3.000001
+  - name: jth4
+    lower: -0.2622
+    upper: 1.81991
+    effort: 10.0
+    velocity: 3.000001
+  recurrent_state_reset: zero all recurrent states at episode reset
+normalization:
+  normalize_input: true
+  statistics_source: checkpoint model.running_mean_std
+  environment_observation_clip: 10.0
+  reward_observation_scale: 0.01
+control:
+  physics_dt_seconds: 0.01667
+  physics_substeps: 2
+  control_frequency_inv: 1
+  policy_period_seconds: 0.01667
+  policy_frequency_hz: 59.98800239952009
+  action_clip:
+  - -1.0
+  - 1.0
+  arm_actions_0_6: q_target = clamp(previous_q_target + dofSpeedScale * physics_dt
+    * action, limits)
+  arm_dof_speed_scale: 10.0
+  hand_actions_7_22: scale action from [-1,1] to absolute joint limits
+  hand_target_moving_average: 1.0
+  default_joint_position:
+  - 0.0
+  - 0.36
+  - 0.0
+  - 1.34
+  - 0.0
+  - 1.43
+  - 1.5708
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+phase_signal:
+  history_length: 0
+  joint_index: null
+  motor_torque_constant: null
+  clip: null
+  scales:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0

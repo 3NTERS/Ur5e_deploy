@@ -1,0 +1,239 @@
+format_version: 1
+task: Ur5eRobotiqLiftGripper
+checkpoint:
+  path: /home/liang/Workspace/Ur5e_deploy/resources/models/ur5e_lift_gripper/ur5e_lift_gripper_distilled.pth
+  sha256: f1bb0be4cf6b8e7b138785166a765dc5e993a325fc92a4fab6d04b249944a23b
+  continuable_rl_games_checkpoint: true
+  epoch: 600
+  frame: 2457600
+  distillation:
+    kind: fixed_sequence_schedule
+    source_checkpoint: /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/runs/Ur5eRobotiqLiftGripperPPO_v4_02-23-04-03/nn/last_Ur5eRobotiqLiftGripperPPO_v4_ep_600_rew_81.127304.pth
+    training_steps: 12000
+    max_abs_action_fit_error: 0.7698301672935486
+    observation_dependency: index 66 (log episode progress) only
+onnx:
+  path: /home/liang/Workspace/Ur5e_deploy/resources/models/ur5e_lift_gripper/ur5e_lift_gripper.onnx
+  deterministic: true
+  output_semantics: clamp(actor_mean, -1, 1)
+  validation:
+    checker_passed: true
+    execution_provider: CPUExecutionProvider
+    active_providers:
+    - CPUExecutionProvider
+    recurrent_steps: 5
+    tf32_disabled: false
+    step_errors:
+    - step: 1
+      max_abs_error_by_output:
+        action: 7.711350917816162e-07
+    - step: 2
+      max_abs_error_by_output:
+        action: 7.711350917816162e-07
+    - step: 3
+      max_abs_error_by_output:
+        action: 7.711350917816162e-07
+    - step: 4
+      max_abs_error_by_output:
+        action: 7.711350917816162e-07
+    - step: 5
+      max_abs_error_by_output:
+        action: 7.711350917816162e-07
+    max_abs_error_by_output:
+      action: 7.711350917816162e-07
+    max_abs_error: 7.711350917816162e-07
+    tolerance: 1.0e-05
+    passed: true
+network:
+  observation_dim: 69
+  action_dim: 7
+  mlp_units:
+  - 256
+  - 256
+  - 128
+  activation: relu
+  recurrent: false
+  parameter_count: 117647
+observation_layout:
+- name: joint_position_scaled
+  offset: 0
+  size: 12
+  slice: '[0:12]'
+  fixed_zero: false
+  description: UR5e then six Robotiq linkage joints
+- name: joint_velocity
+  offset: 12
+  size: 12
+  slice: '[12:24]'
+  fixed_zero: false
+  description: rad/s; same joint order
+- name: palm_center_position
+  offset: 24
+  size: 3
+  slice: '[24:27]'
+  fixed_zero: false
+  description: world xyz in metres
+- name: palm_pose_velocity
+  offset: 27
+  size: 10
+  slice: '[27:37]'
+  fixed_zero: false
+  description: quaternion xyzw, linear and angular velocity
+- name: object_state
+  offset: 37
+  size: 10
+  slice: '[37:47]'
+  fixed_zero: true
+  description: compatibility field
+- name: fingertip_position_relative_to_palm
+  offset: 47
+  size: 6
+  slice: '[47:53]'
+  fixed_zero: false
+  description: left/right xyz
+- name: object_keypoint_relative_to_palm
+  offset: 53
+  size: 3
+  slice: '[53:56]'
+  fixed_zero: true
+  description: compatibility field
+- name: object_keypoint_relative_to_goal
+  offset: 56
+  size: 3
+  slice: '[56:59]'
+  fixed_zero: true
+  description: compatibility field
+- name: object_scale
+  offset: 59
+  size: 3
+  slice: '[59:62]'
+  fixed_zero: true
+  description: compatibility field
+- name: closest_keypoint_distance
+  offset: 62
+  size: 1
+  slice: '[62:63]'
+  fixed_zero: true
+  description: compatibility field
+- name: closest_fingertip_distances
+  offset: 63
+  size: 2
+  slice: '[63:65]'
+  fixed_zero: true
+  description: compatibility field
+- name: lifted_object
+  offset: 65
+  size: 1
+  slice: '[65:66]'
+  fixed_zero: true
+  description: compatibility field
+- name: log_episode_progress
+  offset: 66
+  size: 1
+  slice: '[66:67]'
+  fixed_zero: false
+  description: log(progress / 10 + 1)
+- name: log_success_count
+  offset: 67
+  size: 1
+  slice: '[67:68]'
+  fixed_zero: true
+  description: fixed zero
+- name: reward_observation
+  offset: 68
+  size: 1
+  slice: '[68:69]'
+  fixed_zero: true
+  description: fixed zero
+joint_order:
+- shoulder_pan_joint
+- shoulder_lift_joint
+- elbow_joint
+- wrist_1_joint
+- wrist_2_joint
+- wrist_3_joint
+- finger_joint
+- left_inner_finger_joint
+- left_inner_knuckle_joint
+- right_outer_knuckle_joint
+- right_inner_finger_joint
+- right_inner_knuckle_joint
+joint_limits:
+- name: shoulder_pan_joint
+  lower: -5.654866776462001
+  upper: 5.654866776462001
+- name: shoulder_lift_joint
+  lower: -5.654866776462001
+  upper: 5.654866776462001
+- name: elbow_joint
+  lower: -2.8274333882310003
+  upper: 2.8274333882310003
+- name: wrist_1_joint
+  lower: -5.654866776462001
+  upper: 5.654866776462001
+- name: wrist_2_joint
+  lower: -5.654866776462001
+  upper: 5.654866776462001
+- name: wrist_3_joint
+  lower: -5.654866776462001
+  upper: 5.654866776462001
+- name: finger_joint
+  lower: 0.0
+  upper: 0.7200000000000001
+- name: left_inner_finger_joint
+  lower: -0.78813
+  upper: 0.0
+- name: left_inner_knuckle_joint
+  lower: 0.0
+  upper: 0.78813
+- name: right_outer_knuckle_joint
+  lower: 0.0
+  upper: 0.7290000000000001
+- name: right_inner_finger_joint
+  lower: -0.78813
+  upper: 0.0
+- name: right_inner_knuckle_joint
+  lower: 0.0
+  upper: 0.78813
+action_mapping:
+  indices_0_5: 'incremental UR5e targets: previous + dofSpeedScale * dt * action'
+  index_6: absolute Robotiq master command; -1=open, +1=closed
+  clip:
+  - -1.0
+  - 1.0
+sequence:
+  episode_steps: 240
+  control_frequency_hz: 59.98800239952009
+  stages:
+  - name: open_hold
+    start: 0
+    end_exclusive: 30
+  - name: close_hold
+    start: 30
+    end_exclusive: 75
+  - name: raise_closed
+    start: 75
+    end_exclusive: 195
+  - name: raised_open
+    start: 195
+    end_exclusive: 240
+  deployment_requirement: advance and encode episode progress exactly as in training
+targets:
+  initial_arm_rad:
+  - -1.5708
+  - -1.5708
+  - 1.5708
+  - -1.5708
+  - -1.5708
+  - 0.0
+  raised_arm_rad:
+  - -1.5708
+  - -1.2
+  - 1.2
+  - -1.5708
+  - -1.5708
+  - 0.0
+  arm_tolerance_rad: 0.05
+  gripper_tolerance_rad: 0.05
+  consecutive_success_steps: 10
+  expected_tcp_lift_m: 0.154

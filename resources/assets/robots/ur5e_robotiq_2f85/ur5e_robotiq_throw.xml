@@ -5,8 +5,8 @@
   <default>
     <default class="ur5e">
       <material shininess="0.25" specular="0.5" />
-      <joint armature="0.1" axis="0 1 0" range="-6.28319 6.28319" />
-      <general biasprm="0 -5000 -1000" biastype="affine" ctrlrange="-6.2831 6.2831" forcerange="-150 150" gainprm="5000" gaintype="fixed" />
+      <joint armature="0" axis="0 1 0" range="-6.28319 6.28319" />
+      <general biasprm="0 -80 -15" biastype="affine" ctrlrange="-6.2831 6.2831" forcerange="-150 150" gainprm="80" gaintype="fixed" />
       <default class="size3">
         <default class="size3_limited">
           <joint range="-3.1415 3.1415" />
@@ -14,7 +14,7 @@
         </default>
       </default>
       <default class="size1">
-        <general biasprm="0 -2000 -400" forcerange="-28 28" gainprm="2000" />
+        <general biasprm="0 -80 -15" forcerange="-28 28" gainprm="80" />
       </default>
       <default class="visual">
         <geom conaffinity="0" contype="0" group="2" type="mesh" />
@@ -128,7 +128,7 @@
                 <geom class="collision" pos="0 0 0.04" size="0.04 0.06" />
                 <geom class="collision" pos="0 0.02 0.1" quat="1 1 0 0" size="0.04 0.04" />
                 <body name="wrist_3_link" pos="0 0 0.1">
-                  <inertial diaginertia="0.000132134 9.90863e-05 9.90863e-05" mass="0.1889" pos="0 0.0771683 0" quat="1 0 0 1" />
+                  <inertial diaginertia="0.0001321171875 9.89041005217e-05 9.89041005217e-05" mass="0.1879" pos="0 0.0771 0" quat="1 0 0 1" />
                   <joint class="size1" name="wrist_3_joint" />
                   <geom class="visual" material="linkgray" mesh="wrist3" />
                   <geom class="eef_collision" pos="0 0.08 0" quat="1 1 0 0" size="0.04 0.02" />

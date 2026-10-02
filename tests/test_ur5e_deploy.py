@@ -5,7 +5,7 @@ import unittest
 import types
 from unittest import mock
 from pathlib import Path
-from time import monotonic
+from time import monotonic, sleep
 
 import numpy as np
 
@@ -506,6 +506,35 @@ class TestPolicyContract(unittest.TestCase):
         np.testing.assert_allclose(target, state.joint_position)
         self.assertEqual(gripper, 0)
 
+    def test_smoke_action_scale_and_grasp_goal(self):
+        state = snapshot()
+        mapper = Ur5eActionMapper(
+            period=0.01667,
+            speed_scale=10.0,
+            max_arm_step=0.008,
+            arm_lower=[-3] * 6,
+            arm_upper=[3] * 6,
+            action_scale=0.05,
+        )
+        mapper.reset(state)
+        raw = np.array([0.5] * 6 + [1.0])
+        target, gripper = mapper.map(raw)
+        np.testing.assert_allclose(target - state.joint_position, 10.0 * 0.01667 * 0.05 * 0.5)
+        np.testing.assert_allclose(mapper.last_limited_action[:6], 0.025)
+        self.assertEqual(mapper.last_limited_action[6], 1.0)
+        self.assertEqual(gripper, 255)
+
+        builder = Ur5eObservationBuilder(
+            FakeProjector(),
+            [0.8, 0.3, 0.05],
+            subtask="grasp",
+            goal_offset=[0.0, 0.0, 0.12],
+        )
+        builder.begin_episode([0.6, 0.0, 0.2])
+        observation, _ = builder.build(state)
+        np.testing.assert_allclose(builder.goal_position, [0.6, 0.0, 0.32])
+        np.testing.assert_allclose(observation[56:59], [0.0, 0.0, -0.12])
+
 
 class TestEyeOnBaseTracker(unittest.TestCase):
     @staticmethod
@@ -773,6 +802,30 @@ class TestDeploymentSession(unittest.TestCase):
                 session.run_episode(steps=1)
         self.assertEqual(robot.starts, 0)
         self.assertEqual(robot.stops, 0)
+        self.assertEqual(robot.commands, [])
+
+    def test_policy_timeout_stops_before_next_command(self):
+        class SlowPolicy(FakePolicy):
+            def infer(self, observation):
+                sleep(0.01)
+                return super().infer(observation)
+
+        robot = FakeRobot()
+        builder = Ur5eObservationBuilder(FakeProjector(), [0.8, 0.3, 0.05])
+        mapper = Ur5eActionMapper(max_arm_step=0.05, arm_lower=[-3] * 6, arm_upper=[3] * 6)
+        safety = SafetyMonitor([-3] * 6, [3] * 6)
+        with tempfile.TemporaryDirectory() as directory:
+            session = DeploymentSession(
+                FakeCamera(), FakeLocator(), robot, SlowPolicy(), builder, mapper, safety,
+                directory, execute=True, policy_period=0.00001, max_policy_lag=0.001,
+                home_confirmation_provider=lambda: None,
+                tracking_camera=FakeCamera(), tracking_locator=FakeLocator(),
+                tracker_factory=FakeTracker,
+            )
+            with self.assertRaisesRegex(RuntimeError, "missed its schedule"):
+                session.run_episode(steps=1)
+        self.assertEqual(robot.starts, 1)
+        self.assertEqual(robot.stops, 1)
         self.assertEqual(robot.commands, [])
 
 

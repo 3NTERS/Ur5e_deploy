@@ -1,0 +1,11 @@
+{
+  "sha256": "a19b9fe01dbbc1b54a1c98a9d2c61849b4bb08737510536d0c26acb42f43a0c8",
+  "source_group": "1203_LSTM_throw_v1_pbt_6p",
+  "best_directory": "best1",
+  "checkpoint": "/home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/train_dir/1203_LSTM_throw_v1_pbt_6p/1203_LSTM_throw_v1_pbt_6p_/runs/workspace_allegro_kuka/best1/AllegroKuka_best_obj_000000016.36719_iter_0101_policy003_frame2020016128.pth",
+  "checkpoint_objective": 16.36719,
+  "task_kind": "throw",
+  "evaluation_task": "AllegroRokaeLSTM_throw",
+  "alias_count": 3,
+  "aliases": "/home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/train_dir/1203_LSTM_throw_v1_pbt_6p/1203_LSTM_throw_v1_pbt_6p_/runs/workspace_allegro_kuka/best1/AllegroKuka_best_obj_000000016.36719_iter_0101_policy003_frame2020016128.pth|/home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/train_dir/1203_LSTM_throw_v1_pbt_6p/1203_LSTM_throw_v1_pbt_6p_/runs/workspace_allegro_kuka/best3/AllegroKuka_best_obj_000000016.36719_iter_0101_policy003_frame2020016128.pth|/home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/train_dir/1203_LSTM_throw_v1_pbt_6p/1203_LSTM_throw_v1_pbt_6p_/runs/workspace_allegro_kuka/best5/AllegroKuka_best_obj_000000016.36719_iter_0109_policy003_frame2180055040.pth"
+}

@@ -1,0 +1,5 @@
+label,variant,checkpoint_true_objective,requested_games,completed_games,max_successes,max_reported_mean_consecutive_successes,average_reward,average_steps,seed,num_envs,deterministic
+1009_lstm,lstm,13.42254638671875,16,16,1,0.00,300.99182891845703,610.75,0,16,true
+1021_lstm,lstm,6.479248046875,16,16,0,0.00,39.25399398803711,599.0,0,16,true
+1125_lstm,lstm,20.23583984375,16,16,1,0.00,257.3617706298828,608.5625,0,16,true
+1205_lstm,lstm,26.796630859375,16,17,12,1.44,2367.0269649730008,700.2352941176471,0,16,true

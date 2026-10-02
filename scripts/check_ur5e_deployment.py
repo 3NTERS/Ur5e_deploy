@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib
+import json
 import os
 import platform
 from pathlib import Path
@@ -72,6 +74,14 @@ def resolve_path(value):
     return path if path.is_absolute() else ROOT / path
 
 
+def sha256(path):
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default="resources/config/ur5e_deploy.yaml")
@@ -91,6 +101,7 @@ def main():
         "eye-on-base calibration": config["tracking_camera"]["calibration"],
         "kinematic MJCF": "resources/assets/robots/ur5e_robotiq_2f85/ur5e_robotiq_2f85.xml",
         "UR5e throw sim2sim scene": "resources/assets/robots/ur5e_robotiq_2f85/ur5e_robotiq_throw.xml",
+        "UR5e grasp sim2sim scene": "resources/assets/robots/ur5e_robotiq_2f85/ur5e_robotiq_grasp.xml",
     }
     for label, value in required_files.items():
         path = resolve_path(value)
@@ -204,6 +215,37 @@ def main():
         report("PASS" if valid_io else "FAIL", "policy metadata I/O", "expected 69 -> 7")
         if not valid_io:
             failures.append("policy metadata I/O")
+        if metadata.get("deployment_class") == "smoke_only":
+            contract = metadata.get("task_contract", {})
+            smoke = config.get("smoke_policy", {})
+            smoke_valid = (
+                metadata.get("task") == "Ur5eRobotiqGrasp"
+                and contract.get("subtask") == "grasp"
+                and contract.get("episode_steps") == 600
+                and smoke.get("arm_action_scale") == 0.05
+                and smoke.get("max_arm_step") == 0.008
+                and smoke.get("max_joint_velocity") == 0.5
+                and smoke.get("max_target_error") == 0.06
+                and smoke.get("gripper_speed") == 32
+                and smoke.get("gripper_force") == 20
+                and smoke.get("goal_offset_m") == [0.0, 0.0, 0.12]
+            )
+            report("PASS" if smoke_valid else "FAIL", "smoke-only safety contract")
+            if not smoke_valid:
+                failures.append("smoke-only safety contract")
+            model_path = resolve_path(config["policy"]["model"])
+            onnx_valid = model_path.is_file() and sha256(model_path) == metadata.get("onnx", {}).get("sha256")
+            report("PASS" if onnx_valid else "FAIL", "smoke ONNX hash")
+            if not onnx_valid:
+                failures.append("smoke ONNX hash")
+            inertia = metadata.get("inertia_audit", {})
+            inertia_path = resolve_path(inertia.get("path", "missing"))
+            inertia_valid = False
+            if inertia_path.is_file() and sha256(inertia_path) == inertia.get("sha256"):
+                inertia_valid = bool(json.loads(inertia_path.read_text(encoding="utf-8")).get("passed"))
+            report("PASS" if inertia_valid else "FAIL", "smoke inertia audit hash")
+            if not inertia_valid:
+                failures.append("smoke inertia audit hash")
 
     robot = config["robot"]
     robot_host = str(robot.get("host", "")).strip()

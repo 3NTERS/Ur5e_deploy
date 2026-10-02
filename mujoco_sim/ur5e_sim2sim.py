@@ -4,6 +4,7 @@ import csv
 import hashlib
 import json
 from pathlib import Path
+from time import monotonic, sleep
 
 import numpy as np
 
@@ -34,9 +35,19 @@ def run_trajectory(adapter, policy=None, actions=None, steps=600, viewer=None, i
         policy.reset()
     observation = adapter.reset(initial)
     rows = {key: [] for key in STATE_KEYS}
-    rows.update({"observation": [observation.copy()], "action": [], "sim_time": [adapter.data.time]})
+    rows.update(
+        {
+            "observation": [observation.copy()],
+            "action": [],
+            "sim_time": [adapter.data.time],
+            "lifted": [bool(adapter.lifted)],
+            "success": [float(adapter.successes)],
+            "reward": [float(adapter.last_reward)],
+        }
+    )
     _append_state(rows, adapter.snapshot())
     count = int(steps) if actions is None else len(actions)
+    wall_started = monotonic()
     for step in range(count):
         if adapter.done:
             break
@@ -47,9 +58,15 @@ def run_trajectory(adapter, policy=None, actions=None, steps=600, viewer=None, i
         rows["action"].append(np.asarray(action).copy())
         rows["observation"].append(observation.copy())
         rows["sim_time"].append(adapter.data.time)
+        rows["lifted"].append(bool(adapter.lifted))
+        rows["success"].append(float(adapter.successes))
+        rows["reward"].append(float(adapter.last_reward))
         _append_state(rows, adapter.snapshot())
         if viewer is not None:
             viewer.sync()
+            remaining = wall_started + (step + 1) * adapter.policy_period - monotonic()
+            if remaining > 0.0:
+                sleep(remaining)
     result = {key: np.asarray(value) for key, value in rows.items()}
     result["action_target"] = result["joint_target"][1:].copy()
     for key in STATE_KEYS:
@@ -187,7 +204,20 @@ def _events(trajectory):
         release_condition[:lift + 1] = False
         release = _first_event(release_condition)
     distance = np.linalg.norm(position - trajectory["goal_position"], axis=1)
-    return {"lift": lift, "release": release, "goal_range": _first_event(distance <= 0.1125)}
+    fingertip_distance = np.linalg.norm(
+        trajectory["fingertip_position"] - position[:, None, :], axis=2
+    ).max(axis=1)
+    moved = np.linalg.norm(position - position[0], axis=1)
+    return {
+        "fingertip_approach": _first_event(fingertip_distance <= 0.04),
+        "gripper_closed": _first_event(trajectory["joint_target"][:, 6] >= 0.576),
+        "object_moved": _first_event(moved >= 0.005),
+        "lift_2cm": _first_event(position[:, 2] - position[0, 2] >= 0.02),
+        "lift_10cm": lift,
+        "lift": lift,
+        "release": release,
+        "goal_range": _first_event(distance <= 0.1125),
+    }
 
 
 def alignment_report(reference, actual, joint_names):
@@ -207,6 +237,43 @@ def alignment_report(reference, actual, joint_names):
         }
     object_angle = _quaternion_angle(reference["object_state"][:, 3:7], actual["object_state"][:, 3:7])
     palm_angle = _quaternion_angle(reference["palm_state"][:, :4], actual["palm_state"][:, :4])
+    approach_steps = [
+        step for step in (ref_events["fingertip_approach"], actual_events["fingertip_approach"])
+        if step is not None
+    ]
+    precontact_end = max(1, min(approach_steps)) if approach_steps else reference["joint_position"].shape[0]
+    initial_joint_max = float(np.max(np.abs(reference["joint_position"][0] - actual["joint_position"][0])))
+    initial_palm = float(np.linalg.norm(reference["palm_position"][0] - actual["palm_position"][0]))
+    initial_fingertips = float(np.max(np.linalg.norm(
+        reference["fingertip_position"][0] - actual["fingertip_position"][0], axis=1
+    )))
+    target_max = float(np.max(np.abs(reference["action_target"] - actual["action_target"])))
+    precontact_joint_rmse = float(np.sqrt(np.mean(np.square(
+        reference["joint_position"][:precontact_end] - actual["joint_position"][:precontact_end]
+    ))))
+    precontact_palm_rmse = float(np.sqrt(np.mean(np.square(
+        reference["palm_position"][:precontact_end] - actual["palm_position"][:precontact_end]
+    ))))
+    grasp_event_names = ("fingertip_approach", "gripper_closed", "object_moved", "lift_2cm", "lift_10cm")
+    event_match = {}
+    for name in grasp_event_names:
+        ref_step, actual_step = ref_events[name], actual_events[name]
+        event_match[name] = (
+            ref_step is None and actual_step is None
+        ) or (
+            ref_step is not None and actual_step is not None and abs(actual_step - ref_step) <= 5
+        )
+    checks = {
+        "initial_joint_max_le_1e-5_rad": initial_joint_max <= 1e-5,
+        "initial_palm_le_1mm": initial_palm <= 0.001,
+        "initial_fingertips_le_1mm": initial_fingertips <= 0.001,
+        "action_target_max_le_1e-5_rad": target_max <= 1e-5,
+        "precontact_joint_rmse_le_0p05_rad": precontact_joint_rmse <= 0.05,
+        "precontact_palm_rmse_le_0p02_m": precontact_palm_rmse <= 0.02,
+        "grasp_events_within_5_steps": all(event_match.values()),
+    }
+    chain_passed = all(checks.values())
+    task_succeeded = ref_events["lift_10cm"] is not None and actual_events["lift_10cm"] is not None
     report = {
         "format_version": 1,
         "steps": int(reference["action"].shape[0]),
@@ -233,6 +300,25 @@ def alignment_report(reference, actual, joint_names):
         },
         "observation": _error(reference["observation"], actual["observation"]),
         "events": events,
+        "acceptance": {
+            "initial_joint_max_abs_rad": initial_joint_max,
+            "initial_palm_position_error_m": initial_palm,
+            "initial_fingertip_position_error_m": initial_fingertips,
+            "action_target_max_abs_rad": target_max,
+            "precontact_frames": int(precontact_end),
+            "precontact_joint_position_rmse_rad": precontact_joint_rmse,
+            "precontact_palm_position_rmse_m": precontact_palm_rmse,
+            "event_match": event_match,
+            "checks": checks,
+            "chain_passed": chain_passed,
+            "task_succeeded": task_succeeded,
+            "conclusion": (
+                "链路通过、任务成功" if chain_passed and task_succeeded else
+                "链路通过、任务失败" if chain_passed else
+                "链路不一致、任务成功" if task_succeeded else
+                "链路不一致、任务失败"
+            ),
+        },
     }
     json.dumps(report, allow_nan=False)
     return report

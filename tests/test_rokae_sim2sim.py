@@ -12,8 +12,8 @@ from onnx_deploy.policy_runner import PolicyRunner
 
 ROOT = Path(__file__).resolve().parents[1]
 SCENE = ROOT / "resources/assets/scenes/allegro_rokae.xml"
-MODEL = ROOT / "resources/models/rokae_allegro/policy.onnx"
-META = ROOT / "resources/models/rokae_allegro/policy.meta.yaml"
+MODEL = ROOT / "resources/models/rokae_allegro/successful_best_seed0/rank01_maxsucc13/policy.onnx"
+META = ROOT / "resources/models/rokae_allegro/successful_best_seed0/rank01_maxsucc13/policy.meta.yaml"
 
 
 class TestRokaeModel(unittest.TestCase):
@@ -30,9 +30,12 @@ class TestRokaeModel(unittest.TestCase):
             mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR, index)
             for index in range(model.nu)
         ]
-        self.assertEqual(robot_joints, self.adapter.joint_names)
+        self.assertEqual(set(robot_joints), set(self.adapter.joint_names))
         self.assertEqual(actuators, [f"{name}_position" for name in self.adapter.joint_names])
         self.assertEqual(model.nu, 23)
+        self.assertAlmostEqual(model.opt.timestep, 0.002)
+        collision_geoms = model.geom_contype != 0
+        np.testing.assert_allclose(model.geom_margin[collision_geoms], 0.002)
 
     def test_observation_contract(self):
         observation = self.adapter.reset()
@@ -46,6 +49,22 @@ class TestRokaeModel(unittest.TestCase):
         np.testing.assert_allclose(observation[23:46], 0.0, atol=1e-6)
         self.assertEqual(observation[69:81].shape, (12,))
         self.assertEqual(observation[91:95].shape, (4,))
+        self.assertEqual(observation[-1], 0.0)
+
+    def test_palm_velocity_uses_link_body_not_offset_site(self):
+        self.adapter.reset()
+        self.adapter.data.qvel[self.adapter.dof_addr] = np.linspace(-0.2, 0.2, 23)
+        mujoco.mj_forward(self.adapter.model, self.adapter.data)
+        observation = self.adapter.observe()
+        body_linear, body_angular = self.adapter._velocity(
+            mujoco.mjtObj.mjOBJ_BODY, self.adapter.palm_body
+        )
+        site_linear, _ = self.adapter._velocity(
+            mujoco.mjtObj.mjOBJ_SITE, self.adapter.palm_site
+        )
+        np.testing.assert_allclose(observation[53:56], body_linear, atol=1e-6)
+        np.testing.assert_allclose(observation[56:59], body_angular, atol=1e-6)
+        self.assertGreater(np.linalg.norm(body_linear - site_linear), 1e-4)
 
     def test_quaternion_order(self):
         np.testing.assert_array_equal(wxyz_to_xyzw([1, 2, 3, 4]), [2, 3, 4, 1])

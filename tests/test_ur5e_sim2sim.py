@@ -7,6 +7,7 @@ import numpy as np
 
 from mujoco_sim.ur5e_adapter import GRIPPER_MULTIPLIERS, Ur5eThrowAdapter
 from mujoco_sim.build_ur5e_throw_scene import build
+from mujoco_sim.build_ur5e_grasp_scene import build as build_grasp
 from mujoco_sim.ur5e_sim2sim import (
     alignment_report,
     initial_from_reference,
@@ -66,6 +67,17 @@ class TestUr5eSim2Sim(unittest.TestCase):
             self.assertEqual(build(base, output), output.resolve())
             adapter = Ur5eThrowAdapter(output, METADATA)
             self.assertEqual(adapter.model.nu, 7)
+
+    def test_grasp_scene_has_no_bucket_and_fixed_goal(self):
+        base = ROOT / "resources/assets/robots/ur5e_robotiq_2f85/ur5e_robotiq_2f85.xml"
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "grasp.xml"
+            build_grasp(base, output)
+            adapter = Ur5eThrowAdapter(output, METADATA)
+            observation = adapter.reset()
+            self.assertIsNone(adapter.bucket_body)
+            np.testing.assert_allclose(adapter.snapshot()["goal_position"], [0.55, 0.0, 0.27])
+            self.assertEqual(observation.shape, (69,))
 
     def test_action_mapping_matches_training_master_joint(self):
         adapter = self.adapter()

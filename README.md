@@ -60,10 +60,45 @@ scripts/run_rokae_sim2sim.sh --provider cpu --steps 600
 
 ```bash
 scripts/run_rokae_sim2sim.sh \
-  --provider cuda \
+  --provider cpu \
   --steps 600 \
   --viewer
 ```
+
+该入口默认使用已筛出的最高成功率权重
+`successful_best_seed0/rank01_maxsucc13/policy.onnx`。若要与 Isaac Gym 比较同一物体、
+同一目标和同一初始机器人状态，先采集单环境参考：
+
+```bash
+scripts/export_rokae_isaac_reference.sh --provider cpu --seed 0 --steps 600
+```
+
+然后回放完全相同的动作并生成逐关节、逐指尖、物体和事件对齐报告：
+
+```bash
+conda run --no-capture-output -n rlgpu \
+  python -m mujoco_sim.rokae_alignment \
+  --reference resources/trajectories/rokae_successful_rank01/isaac_seed0_reference.npz
+```
+
+也可从该参考首帧启动 ONNX 闭环并在 MuJoCo 中观察分叉过程：
+
+```bash
+scripts/run_rokae_sim2sim.sh --provider cpu --steps 600 --viewer \
+  --playback-speed 0.25 \
+  --reference-initial resources/trajectories/rokae_successful_rank01/isaac_seed0_reference.npz
+```
+
+`--playback-speed 0.25` 只把 Viewer 放慢到四分之一实时速度，不改变策略周期、物理
+timestep 或轨迹结果。
+
+当前对齐已经消除了关节顺序、动作限位、掌心偏置/速度、物体质量、摩擦、初始几何和
+自碰撞配置错误。首帧掌心/指尖位置误差低于 `0.04 mm`，动作目标 RMSE 为
+`2.8e-7 rad`。剩余差异属于动力学模型：Isaac 实际导入的 24 个机器人刚体中有 7 个
+惯量不满足刚体三角不等式，而 MuJoCo 必须自动平衡为合法惯量；报告会明确列出此计数和
+惯量误差。因此现有 PhysX checkpoint 不能通过参数复制获得严格的 MuJoCo 成功率。
+如需两引擎都稳定成功，应先修正训练 URDF 惯量，并在包含 PhysX/MuJoCo 参数随机化的
+任务上重新训练或微调；不要用增大摩擦或隐藏状态回放伪装成 sim2sim 成功。
 
 策略周期为 0.01667 秒，MuJoCo timestep 为 0.002 秒。runner 通过目标仿真时间
 自动交替执行 physics substeps，避免把 0.01667 错误截断成固定 8 个 timestep。
@@ -124,43 +159,46 @@ outer knuckle 与 inner knuckle 按 `+1` mimic，两个 inner finger 按 `-1` mi
 夹爪资源包在 `package.xml` 中声明 BSD 许可；模型来源与维护者信息保留在工作区内的
 `components/robotiq_2f_85_gripper_visualization/`。
 
-### UR5e 抛投 sim2sim
+### UR5e grasp 烟雾训练与 sim2sim
 
-抛投 scene 在合体模型上加入训练用窄桌、自由长方体和桶 mesh，物体基准边长为
-`0.04 m`、密度为 `567 kg/m³`。重新生成 scene：
+烟雾任务使用固定窄桌、`0.04 m` 方块（`567 kg/m³`）和物体上方 `0.12 m` 虚拟目标，
+不创建桶。训练前先校验 URDF、PhysX 实际导入值和 MuJoCo 编译值：
+
+```bash
+./scripts/train_ur5e_grasp_smoke.sh
+```
+
+该入口仅在惯量审计通过后，以 seed 0、256 环境、horizon 16、LSTM 768 运行 30 epoch，
+输出位于 IsaacGymEnvs 的 `train_dir/ur5e_grasp_smoke_seed0/`。当前稳定 checkpoint 为
+`ur5e_grasp_smoke_epoch30.pth`；它能产生非恒定机械臂/夹爪动作，但没有抓取成功，故导出
+metadata 明确标记为 `smoke_only`。导出器严格恢复 normalization/LSTM 参数，并比较连续
+5 步 PyTorch/ONNX 状态递推：
 
 ```bash
 conda run --no-capture-output -n rlgpu \
-  python -m mujoco_sim.build_ur5e_throw_scene
+  python scripts/export_ur5e_policy_onnx.py \
+  --checkpoint /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/train_dir/ur5e_grasp_smoke_seed0/ur5e_grasp_smoke_epoch30.pth \
+  --provider cpu
 ```
 
-无 reference 时使用固定的 69→7 ONNX 闭环运行，并输出 NPZ/CSV：
-
-```bash
-conda run --no-capture-output -n rlgpu \
-  python -m mujoco_sim.run_ur5e_sim2sim --provider cuda --seed 0
-```
-
-在当前仓库调用原 Isaac Gym 任务采集同策略、同 seed、单环境参考（不会修改训练仓库）：
+采集 Isaac 参考、生成 MuJoCo grasp scene，并回放同一动作：
 
 ```bash
 conda run --no-capture-output -n rlgpu \
   python scripts/export_ur5e_isaac_reference.py \
   --isaac-root /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs \
-  --seed 0
-```
-
-随后从参考首帧初始化 MuJoCo、回放相同动作并生成纯数值 JSON 报告：
-
-```bash
+  --seed 0 --output resources/trajectories/ur5e_grasp_isaac_reference.npz
+conda run --no-capture-output -n rlgpu python -m mujoco_sim.build_ur5e_grasp_scene
 conda run --no-capture-output -n rlgpu \
   python -m mujoco_sim.run_ur5e_sim2sim \
-  --reference resources/trajectories/ur5e_isaac_reference.npz
+  --provider cpu \
+  --reference resources/trajectories/ur5e_grasp_isaac_reference.npz
 ```
 
-报告不设跨引擎误差通过阈值；它列出逐关节位置/速度/动作目标、掌心、双指尖、
-物体位置/四元数角度/速度以及 lift、release、进入目标范围的事件步差。缺失数组、
-维度错误或非有限数值仍会直接报错。
+不传 `--reference` 时运行 ONNX 闭环；加 `--viewer` 可实时显示。当前同动作结果的初始
+关节/掌心/指尖及动作目标映射通过阈值，但失败策略持续饱和后，两引擎的接触、限位和
+驱动求解分叉，完整接触前关节 RMSE 不通过，因此报告结论是“链路不一致、任务失败”。
+这份结果用于暴露差异，不得视为抓取策略或 sim2real 性能验收。
 
 独立加载、刚性安装、执行器范围和 1000-step 动力学测试：
 
@@ -171,8 +209,8 @@ conda run --no-capture-output -n rlgpu \
 
 ## Next gates
 
-UR5e+Robotiq 的 MJCF、抛投 sim2sim 和实机软件闭环已经具备，但首次带电运动前仍必须
-用最终选定的 ONNX 采集 Isaac 参考并审阅对齐报告，再完成下方外部验收项和低速小步测试。
+UR5e+Robotiq 的 MJCF、grasp smoke ONNX 和实机软件闭环已经具备，但当前策略只用于
+联调。首次带电运动前仍必须完成下方外部验收项和完整 dry-run。
 
 ## UR5e 实机部署
 
@@ -427,8 +465,9 @@ conda run --no-capture-output -n rlgpu \
   python scripts/run_ur5e_policy.py --provider cpu --episodes 1 --steps 60
 ```
 
-确认检测坐标、69 维 observation、7 维 action、循环状态和轨迹文件均合理。每回合结束
-后，命中输入 `y`，否则输入 `x`；结果及检测信息追加到
+确认检测坐标、69 维 observation、7 维 action、循环状态和轨迹文件均合理。普通策略
+每回合结束后记录命中 `y/x`；`smoke_only` 策略只记录 `passed/aborted` 联调结果，不计入
+抓取成功率。结果及检测信息追加到
 `resources/trajectories/ur5e_real/episodes.jsonl`，全维数据保存在对应 NPZ。
 
 策略目标按训练频率 60 Hz 更新；实机层用独立的 500 Hz `servoJ` 线程持续保持最新关节
@@ -436,22 +475,25 @@ conda run --no-capture-output -n rlgpu \
 
 ### 7. 解锁实机运动
 
-实机发送控制需要同时满足三项：配置中设置 `safety.allow_motion: true`、命令行加入
-`--execute`、启动时人工输入大写 `ARM`。运行期间会检查保护/急停、状态新鲜度、关节
+普通策略发送控制需要同时满足三项：配置中设置 `safety.allow_motion: true`、命令行加入
+`--execute`、启动时人工输入大写 `ARM`。`smoke_only` 还必须加入
+`--allow-smoke-policy`，并固定运行 600 步。运行期间会检查保护/急停、状态新鲜度、关节
 速度、硬限位、单步增量、跟踪误差和掌心工作空间；异常或 `Ctrl-C` 会进入停止清理。
 每个回合检测前还会要求输入大写 `HOME`，随后先张开空夹爪，再以配置的低速 `moveJ`
 回到训练初始关节姿态；到位误差和静止状态确认通过后才采集相机帧。
 
 ```bash
 conda run --no-capture-output -n rlgpu \
-  python scripts/run_ur5e_policy.py --execute --episodes 1
+  python scripts/run_ur5e_policy.py --execute --allow-smoke-policy --episodes 1
 ```
 
-首次执行必须降低 `max_arm_step` 和夹爪速度、使用单回合、保持示教器急停可触达。
+smoke 档会强制机械臂动作乘 `0.05`、单步不超过 `0.008 rad`、实测速度不超过
+`0.5 rad/s`、目标误差不超过 `0.06 rad`，夹爪使用 `speed=32/force=20`。这些限制不会
+修改生产默认值；首次执行仍须使用单回合、轻质方块、隔离工作区并保持急停可触达。
 
 ### 尚需现场提供/验收
 
-- 经仿真选择并导出的 UR5e 69→7 ONNX（当前仓库没有该文件）。
+- 当前 `smoke_only` ONNX 已生成，但它不能替代后续正式训练和独立验收的生产策略。
 - YOLO 权重、目标 class、两台 RealSense 序列号，以及现场生成的 `eye_on_hand.yaml` 和
   `eye_on_base.yaml`。
 - 真实桶中心、物体 scale/初始姿态约定和保守的关节/笛卡尔安全边界。
@@ -459,5 +501,5 @@ conda run --no-capture-output -n rlgpu \
   `63352` 提供服务。PC 不安装串口驱动或 Modbus 后端。
 - UR 控制器启用 Remote Control 及 Dashboard、Primary/Secondary、Real-time、RTDE 服务；
   不需要 External Control URCap。专用网络按 `192.168.1.10/24 ↔ 192.168.1.20/24` 验收。
-- 使用最终 ONNX 采集 Isaac reference 并审阅 UR5e sim2sim 数值报告；之后再做只读
-  dry-run 和低速实机测试。
+- 当前 smoke ONNX 的 Isaac reference 和 MuJoCo 数值报告已生成且显示长时动力学不一致；
+  现场仍需先做只读 dry-run，再做受限实机联调。正式策略必须重新采集并单独验收。

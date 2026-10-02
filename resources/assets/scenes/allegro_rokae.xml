@@ -22,156 +22,156 @@
     <mesh file="../robots/rokae_allegro/meshes/allegro/40_10_link_t4.stl" name="40_10_link_t4" scale="0.001 0.001 0.001" />
   </asset>
   <worldbody>
-    <body name="xMatePro7_base">
+    <body gravcomp="1" name="xMatePro7_base">
       <inertial diaginertia="0.066 0.056 0.035" mass="5.48267" pos="-0.0183 0 0.067" quat="0.707107 0 0 0.707107" />
       <geom conaffinity="0" contype="0" density="0" group="1" mesh="xMatePro7_base" rgba="1 1 1 1" type="mesh" />
-      <geom mesh="xMatePro7_base" rgba="1 1 1 1" type="mesh" />
-      <body name="xMatePro7_link1">
+      <geom conaffinity="6" contype="1" mesh="xMatePro7_base" rgba="1 1 1 1" type="mesh" />
+      <body gravcomp="1" name="xMatePro7_link1">
         <inertial diaginertia="2.42533 2.42533 2.42533" mass="5.96204" pos="0 -0.017 0.32" quat="0.499754 0.500245 -0.500245 0.499754" />
-        <joint axis="0 0 1" damping="5" name="xmate_joint_1" pos="0 0 0" range="-3.0527 3.0527" />
+        <joint axis="0 0 1" damping="0" name="xmate_joint_1" pos="0 0 0" range="-3.0527 3.0527" />
         <geom conaffinity="0" contype="0" density="0" group="1" mesh="xMatePro7_link1" rgba="1 1 1 1" type="mesh" />
-        <geom mesh="xMatePro7_link1" rgba="1 1 1 1" type="mesh" />
-        <body name="xMatePro7_link2" pos="0 0 0.404">
+        <geom conaffinity="6" contype="1" mesh="xMatePro7_link1" rgba="1 1 1 1" type="mesh" />
+        <body gravcomp="1" name="xMatePro7_link2" pos="0 0 0.404">
           <inertial diaginertia="2.437 2.437 2.437" mass="5.40302" pos="0 0.032 0.093" quat="0.707106 -0.000685652 0.000685652 0.707106" />
-          <joint axis="0 1 0" damping="5" name="xmate_joint_2" pos="0 0 0" range="-2.0933 2.0933" />
+          <joint axis="0 1 0" damping="0" name="xmate_joint_2" pos="0 0 0" range="-2.0933 2.0933" />
           <geom conaffinity="0" contype="0" density="0" group="1" mesh="xMatePro7_link2" rgba="1 1 1 1" type="mesh" />
-          <geom mesh="xMatePro7_link2" rgba="1 1 1 1" type="mesh" />
-          <body name="xMatePro7_link3" pos="0 0 0.237439">
+          <geom conaffinity="6" contype="1" mesh="xMatePro7_link2" rgba="1 1 1 1" type="mesh" />
+          <body gravcomp="1" name="xMatePro7_link3" pos="0 0 0.237439">
             <inertial diaginertia="0.387667 0.387667 0.387667" mass="3.95735" pos="0 -0.013 -0.067" quat="0.499545 0.500455 -0.500455 0.499545" />
-            <joint axis="0 0 1" damping="5" name="xmate_joint_3" pos="0 0 0" range="-3.0527 3.0527" />
+            <joint axis="0 0 1" damping="0" name="xmate_joint_3" pos="0 0 0" range="-3.0527 3.0527" />
             <geom conaffinity="0" contype="0" density="0" group="1" mesh="xMatePro7_link3" pos="0 0 0.1555" rgba="1 1 1 1" type="mesh" />
-            <geom mesh="xMatePro7_link3" pos="0 0 0.1555" rgba="1 1 1 1" type="mesh" />
-            <body name="xMatePro7_link4" pos="0 0 0.1555">
+            <geom conaffinity="6" contype="1" mesh="xMatePro7_link3" pos="0 0 0.1555" rgba="1 1 1 1" type="mesh" />
+            <body gravcomp="1" name="xMatePro7_link4" pos="0 0 0.1555">
               <inertial diaginertia="0.389 0.389 0.389" mass="2.91217" pos="0 0.026 0.068" quat="0.707106 -0.00124818 0.00124818 0.707106" />
-              <joint axis="0 1 0" damping="5" name="xmate_joint_4" pos="0 0 0" range="-2.0933 2.0933" />
+              <joint axis="0 1 0" damping="0" name="xmate_joint_4" pos="0 0 0" range="-2.0933 2.0933" />
               <geom conaffinity="0" contype="0" density="0" group="1" mesh="xMatePro7_link4" rgba="1 1 1 1" type="mesh" />
-              <geom mesh="xMatePro7_link4" rgba="1 1 1 1" type="mesh" />
-              <body name="xMatePro7_link5" pos="0 0 0.220446">
+              <geom conaffinity="6" contype="1" mesh="xMatePro7_link4" rgba="1 1 1 1" type="mesh" />
+              <body gravcomp="1" name="xMatePro7_link5" pos="0 0 0.220446">
                 <inertial diaginertia="0.125333 0.125333 0.125333" mass="2.47056" pos="0 -0.014 -0.079" quat="0.49844 0.501555 -0.501555 0.49844" />
-                <joint axis="0 0 1" damping="5" name="xmate_joint_5" pos="0 0 0" range="-3.0527 3.0527" />
+                <joint axis="0 0 1" damping="0" name="xmate_joint_5" pos="0 0 0" range="-3.0527 3.0527" />
                 <geom conaffinity="0" contype="0" density="0" group="1" mesh="xMatePro7_link5" pos="0 0 0.145126" rgba="1 1 1 1" type="mesh" />
-                <geom mesh="xMatePro7_link5" pos="0 0 0.145126" rgba="1 1 1 1" type="mesh" />
-                <body name="xMatePro7_link6" pos="0 0 0.145126">
+                <geom conaffinity="6" contype="1" mesh="xMatePro7_link5" pos="0 0 0.145126" rgba="1 1 1 1" type="mesh" />
+                <body gravcomp="1" name="xMatePro7_link6" pos="0 0 0.145126">
                   <inertial diaginertia="0.123333 0.123333 0.123333" mass="2.16053" pos="0 0.02 0.085" quat="0.7071 -0.00304756 0.00304756 0.7071" />
-                  <joint axis="0 1 0" damping="5" name="xmate_joint_6" pos="0 0 0" range="-2.0933 2.0933" />
+                  <joint axis="0 1 0" damping="0" name="xmate_joint_6" pos="0 0 0" range="-2.0933 2.0933" />
                   <geom conaffinity="0" contype="0" density="0" group="1" mesh="xMatePro7_link6" rgba="1 1 1 1" type="mesh" />
-                  <geom mesh="xMatePro7_link6" rgba="1 1 1 1" type="mesh" />
-                  <body name="xMatePro7_link7" pos="0 0 0.250909">
+                  <geom conaffinity="6" contype="1" mesh="xMatePro7_link6" rgba="1 1 1 1" type="mesh" />
+                  <body gravcomp="1" name="xMatePro7_link7" pos="0 0 0.250909">
                     <inertial diaginertia="0.127213 0.127013 0.113922" mass="1.6852" pos="0 0.00903163 -0.0027745" quat="0.684795 0.0264993 -0.0280706 0.727712" />
-                    <joint axis="0 0 1" damping="5" name="xmate_joint_7" pos="0 0 0" range="-6.283 6.283" />
+                    <joint axis="0 0 1" damping="0" name="xmate_joint_7" pos="0 0 0" range="-6.283 6.283" />
                     <geom conaffinity="0" contype="0" density="0" group="1" mesh="xMatePro7_link7" rgba="1 1 1 1" type="mesh" />
-                    <geom mesh="xMatePro7_link7" rgba="1 1 1 1" type="mesh" />
+                    <geom conaffinity="6" contype="1" mesh="xMatePro7_link7" rgba="1 1 1 1" type="mesh" />
                     <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_g_r" pos="0 0 0.147" quat="0.707388 0 0 -0.706825" type="mesh" />
-                    <geom mesh="40_10_link_g_r" pos="0 0 0.147" quat="0.707388 0 0 -0.706825" type="mesh" />
-                    <body name="mf1" pos="0 0 0.1636" quat="0.707388 0 0 -0.706825">
+                    <geom conaffinity="6" contype="1" mesh="40_10_link_g_r" pos="0 0 0.147" quat="0.707388 0 0 -0.706825" type="mesh" />
+                    <body gravcomp="1" name="mf1" pos="0 0 0.1636" quat="0.707388 0 0 -0.706825">
                       <inertial diaginertia="2.70079e-06 2.05786e-06 1.27128e-06" mass="0.0113501" pos="0 0 0" quat="0.999987 0.00268104 0.00348413 0.00243885" />
-                      <joint axis="0 0 1" damping="5" name="jmf1" pos="0 0 0" range="-0.57 0.57" />
+                      <joint axis="0 0 1" damping="0" name="jmf1" pos="0 0 0" range="-0.57 0.57" />
                       <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f1" rgba="0 0 0.8 1" type="mesh" />
-                      <geom mesh="40_10_link_f1" rgba="0 0 0.8 1" type="mesh" />
-                      <body name="mf2">
+                      <geom conaffinity="6" contype="1" mesh="40_10_link_f1" rgba="0 0 0.8 1" type="mesh" />
+                      <body gravcomp="1" name="mf2">
                         <inertial diaginertia="7.80402e-05 7.66613e-05 6.93906e-06" mass="0.0711891" pos="0 0 0" quat="0.511773 0.50721 0.488471 0.492161" />
-                        <joint axis="0 1 0" damping="5" name="jmf2" pos="0 0 0" range="-0.296 1.71" />
+                        <joint axis="0 1 0" damping="0" name="jmf2" pos="0 0 0" range="-0.296 1.71" />
                         <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f2" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0 1" type="mesh" />
-                        <geom mesh="40_10_link_f2" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0 1" type="mesh" />
-                        <body name="mf3" pos="0 0 0.054" quat="0.707105 0 -0.707108 0">
+                        <geom conaffinity="6" contype="1" mesh="40_10_link_f2" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0 1" type="mesh" />
+                        <body gravcomp="1" name="mf3" pos="0 0 0.054" quat="0.707105 0 -0.707108 0">
                           <inertial diaginertia="2.94282e-05 2.81825e-05 3.82984e-06" mass="0.0375886" pos="0 0 0" quat="0.507214 0.511 0.481375 0.499891" />
-                          <joint axis="0 1 0" damping="5" name="jmf3" pos="0 0 0" range="-0.274 1.809" />
+                          <joint axis="0 1 0" damping="0" name="jmf3" pos="0 0 0" range="-0.274 1.809" />
                           <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f3" quat="0.707105 -0.707108 0 0" rgba="0 0 0.8 1" type="mesh" />
-                          <geom mesh="40_10_link_f3" quat="0.707105 -0.707108 0 0" rgba="0 0 0.8 1" type="mesh" />
-                          <body name="mf4" pos="0.0384 0 0">
+                          <geom conaffinity="6" contype="1" mesh="40_10_link_f3" quat="0.707105 -0.707108 0 0" rgba="0 0 0.8 1" type="mesh" />
+                          <body gravcomp="1" name="mf4" pos="0.0384 0 0">
                             <inertial diaginertia="7.51389e-06 6.89339e-06 2.682e-06" mass="0.0260844" pos="0.0100241 0 0" quat="0.499193 0.501834 0.498241 0.500724" />
-                            <joint axis="0 1 0" damping="5" name="jmf4" pos="0 0 0" range="-0.327 1.718" />
+                            <joint axis="0 1 0" damping="0" name="jmf4" pos="0 0 0" range="-0.327 1.718" />
                             <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f4" quat="0.707105 -0.707108 0 0" rgba="0 0 0 1" type="mesh" />
-                            <geom mesh="40_10_link_f4" quat="0.707105 -0.707108 0 0" rgba="0 0 0 1" type="mesh" />
+                            <geom conaffinity="6" contype="1" mesh="40_10_link_f4" quat="0.707105 -0.707108 0 0" rgba="0 0 0 1" type="mesh" />
                             <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f5" pos="0.0157 0 0" quat="0.707105 -0.707108 0 0" rgba="1 1 1 1" type="mesh" />
-                            <geom mesh="40_10_link_f5" pos="0.0157 0 0" quat="0.707105 -0.707108 0 0" rgba="1 1 1 1" type="mesh" />
+                            <geom conaffinity="6" contype="1" mesh="40_10_link_f5" pos="0.0157 0 0" quat="0.707105 -0.707108 0 0" rgba="1 1 1 1" type="mesh" />
                             <site name="mf4_tip" pos="0.035 0 0" size="0.006" />
                           </body>
                         </body>
                       </body>
                     </body>
-                    <body name="pf1" pos="-0.045098 -3.59127e-05 0.161293" quat="0.706715 0.0308559 -0.0308313 -0.706152">
+                    <body gravcomp="1" name="pf1" pos="-0.045098 -3.59127e-05 0.161293" quat="0.706715 0.0308559 -0.0308313 -0.706152">
                       <inertial diaginertia="2.70079e-06 2.05786e-06 1.27128e-06" mass="0.0113501" pos="0 0 0" quat="0.999987 0.00268104 0.00348413 0.00243885" />
-                      <joint axis="0 0 1" damping="5" name="jpf1" pos="0 0 0" range="-0.57 0.57" />
+                      <joint axis="0 0 1" damping="0" name="jpf1" pos="0 0 0" range="-0.57 0.57" />
                       <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f1" rgba="0 0 0.8 1" type="mesh" />
-                      <geom mesh="40_10_link_f1" rgba="0 0 0.8 1" type="mesh" />
-                      <body name="pf2">
+                      <geom conaffinity="6" contype="1" mesh="40_10_link_f1" rgba="0 0 0.8 1" type="mesh" />
+                      <body gravcomp="1" name="pf2">
                         <inertial diaginertia="7.80402e-05 7.66613e-05 6.93906e-06" mass="0.0711891" pos="0 0 0" quat="0.511773 0.50721 0.488471 0.492161" />
-                        <joint axis="0 1 0" damping="5" name="jpf2" pos="0 0 0" range="-0.296 1.71" />
+                        <joint axis="0 1 0" damping="0" name="jpf2" pos="0 0 0" range="-0.296 1.71" />
                         <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f2" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0 1" type="mesh" />
-                        <geom mesh="40_10_link_f2" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0 1" type="mesh" />
-                        <body name="pf3" pos="0 0 0.054" quat="0.707105 0 -0.707108 0">
+                        <geom conaffinity="6" contype="1" mesh="40_10_link_f2" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0 1" type="mesh" />
+                        <body gravcomp="1" name="pf3" pos="0 0 0.054" quat="0.707105 0 -0.707108 0">
                           <inertial diaginertia="2.94282e-05 2.81825e-05 3.82984e-06" mass="0.0375886" pos="0 0 0" quat="0.507214 0.511 0.481375 0.499891" />
-                          <joint axis="0 1 0" damping="5" name="jpf3" pos="0 0 0" range="-0.274 1.809" />
+                          <joint axis="0 1 0" damping="0" name="jpf3" pos="0 0 0" range="-0.274 1.809" />
                           <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f3" quat="0.707105 -0.707108 0 0" rgba="0 0 0.8 1" type="mesh" />
-                          <geom mesh="40_10_link_f3" quat="0.707105 -0.707108 0 0" rgba="0 0 0.8 1" type="mesh" />
-                          <body name="pf4" pos="0.0384 0 0">
+                          <geom conaffinity="6" contype="1" mesh="40_10_link_f3" quat="0.707105 -0.707108 0 0" rgba="0 0 0.8 1" type="mesh" />
+                          <body gravcomp="1" name="pf4" pos="0.0384 0 0">
                             <inertial diaginertia="7.51389e-06 6.89339e-06 2.682e-06" mass="0.0260844" pos="0.0100241 0 0" quat="0.499193 0.501834 0.498241 0.500724" />
-                            <joint axis="0 1 0" damping="5" name="jpf4" pos="0 0 0" range="-0.327 1.718" />
+                            <joint axis="0 1 0" damping="0" name="jpf4" pos="0 0 0" range="-0.327 1.718" />
                             <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f4" quat="0.707105 -0.707108 0 0" rgba="0 0 0 1" type="mesh" />
-                            <geom mesh="40_10_link_f4" quat="0.707105 -0.707108 0 0" rgba="0 0 0 1" type="mesh" />
+                            <geom conaffinity="6" contype="1" mesh="40_10_link_f4" quat="0.707105 -0.707108 0 0" rgba="0 0 0 1" type="mesh" />
                             <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f5" pos="0.0157 0 0" quat="0.707105 -0.707108 0 0" rgba="1 1 1 1" type="mesh" />
-                            <geom mesh="40_10_link_f5" pos="0.0157 0 0" quat="0.707105 -0.707108 0 0" rgba="1 1 1 1" type="mesh" />
+                            <geom conaffinity="6" contype="1" mesh="40_10_link_f5" pos="0.0157 0 0" quat="0.707105 -0.707108 0 0" rgba="1 1 1 1" type="mesh" />
                             <site name="pf4_tip" pos="0.035 0 0" size="0.006" />
                           </body>
                         </body>
                       </body>
                     </body>
-                    <body name="if1" pos="0.045098 3.59127e-05 0.161293" quat="0.706715 -0.0308559 0.0308313 -0.706152">
+                    <body gravcomp="1" name="if1" pos="0.045098 3.59127e-05 0.161293" quat="0.706715 -0.0308559 0.0308313 -0.706152">
                       <inertial diaginertia="2.70079e-06 2.05786e-06 1.27128e-06" mass="0.0113501" pos="0 0 0" quat="0.999987 0.00268104 0.00348413 0.00243885" />
-                      <joint axis="0 0 1" damping="5" name="jif1" pos="0 0 0" range="-0.57 0.57" />
+                      <joint axis="0 0 1" damping="0" name="jif1" pos="0 0 0" range="-0.57 0.57" />
                       <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f1" rgba="0 0 0.8 1" type="mesh" />
-                      <geom mesh="40_10_link_f1" rgba="0 0 0.8 1" type="mesh" />
-                      <body name="if2">
+                      <geom conaffinity="6" contype="1" mesh="40_10_link_f1" rgba="0 0 0.8 1" type="mesh" />
+                      <body gravcomp="1" name="if2">
                         <inertial diaginertia="7.80402e-05 7.66613e-05 6.93906e-06" mass="0.0711891" pos="0 0 0" quat="0.511773 0.50721 0.488471 0.492161" />
-                        <joint axis="0 1 0" damping="5" name="jif2" pos="0 0 0" range="-0.296 1.71" />
+                        <joint axis="0 1 0" damping="0" name="jif2" pos="0 0 0" range="-0.296 1.71" />
                         <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f2" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0 1" type="mesh" />
-                        <geom mesh="40_10_link_f2" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0 1" type="mesh" />
-                        <body name="if3" pos="0 0 0.054" quat="0.707105 0 -0.707108 0">
+                        <geom conaffinity="6" contype="1" mesh="40_10_link_f2" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0 1" type="mesh" />
+                        <body gravcomp="1" name="if3" pos="0 0 0.054" quat="0.707105 0 -0.707108 0">
                           <inertial diaginertia="2.94282e-05 2.81825e-05 3.82984e-06" mass="0.0375886" pos="0 0 0" quat="0.507214 0.511 0.481375 0.499891" />
-                          <joint axis="0 1 0" damping="5" name="jif3" pos="0 0 0" range="-0.274 1.809" />
+                          <joint axis="0 1 0" damping="0" name="jif3" pos="0 0 0" range="-0.274 1.809" />
                           <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f3" quat="0.707105 -0.707108 0 0" rgba="0 0 0.8 1" type="mesh" />
-                          <geom mesh="40_10_link_f3" quat="0.707105 -0.707108 0 0" rgba="0 0 0.8 1" type="mesh" />
-                          <body name="if4" pos="0.0384 0 0">
+                          <geom conaffinity="6" contype="1" mesh="40_10_link_f3" quat="0.707105 -0.707108 0 0" rgba="0 0 0.8 1" type="mesh" />
+                          <body gravcomp="1" name="if4" pos="0.0384 0 0">
                             <inertial diaginertia="7.51389e-06 6.89339e-06 2.682e-06" mass="0.0260844" pos="0.0100241 0 0" quat="0.499193 0.501834 0.498241 0.500724" />
-                            <joint axis="0 1 0" damping="5" name="jif4" pos="0 0 0" range="-0.327 1.718" />
+                            <joint axis="0 1 0" damping="0" name="jif4" pos="0 0 0" range="-0.327 1.718" />
                             <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f4" quat="0.707105 -0.707108 0 0" rgba="0 0 0 1" type="mesh" />
-                            <geom mesh="40_10_link_f4" quat="0.707105 -0.707108 0 0" rgba="0 0 0 1" type="mesh" />
+                            <geom conaffinity="6" contype="1" mesh="40_10_link_f4" quat="0.707105 -0.707108 0 0" rgba="0 0 0 1" type="mesh" />
                             <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f5" pos="0.0157 0 0" quat="0.707105 -0.707108 0 0" rgba="1 1 1 1" type="mesh" />
-                            <geom mesh="40_10_link_f5" pos="0.0157 0 0" quat="0.707105 -0.707108 0 0" rgba="1 1 1 1" type="mesh" />
+                            <geom conaffinity="6" contype="1" mesh="40_10_link_f5" pos="0.0157 0 0" quat="0.707105 -0.707108 0 0" rgba="1 1 1 1" type="mesh" />
                             <site name="if4_tip" pos="0.035 0 0" size="0.006" />
                           </body>
                         </body>
                       </body>
                     </body>
-                    <body name="th1" pos="0.0169435 0.0182135 0.0747" quat="0.706715 -0.0308559 0.0308313 -0.706152">
+                    <body gravcomp="1" name="th1" pos="0.0169435 0.0182135 0.0747" quat="0.706715 -0.0308559 0.0308313 -0.706152">
                       <inertial diaginertia="5.05817e-05 4.8639e-05 1.7824e-05" mass="0.0798099" pos="0 0 0" quat="0.482949 0.855619 -0.157215 -0.0997976" />
-                      <joint axis="0 0 -1" damping="5" name="jth1" pos="0 0 0" range="0.36357 1.4968" />
+                      <joint axis="0 0 -1" damping="0" name="jth1" pos="0 0 0" range="0.36357 1.4968" />
                       <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_t1_r" rgba="0 0 0.8 1" type="mesh" />
-                      <geom mesh="40_10_link_t1_r" rgba="0 0 0.8 1" type="mesh" />
-                      <body name="th2" pos="0.005 0.055189 0">
+                      <geom conaffinity="6" contype="1" mesh="40_10_link_t1_r" rgba="0 0 0.8 1" type="mesh" />
+                      <body gravcomp="1" name="th2" pos="0.005 0.055189 0">
                         <inertial diaginertia="2.70079e-06 2.05786e-06 1.27128e-06" mass="0.0113501" pos="0 0 0" quat="0.999987 0.00268104 0.00348413 0.00243884" />
-                        <joint axis="0 1 0" damping="5" name="jth2" pos="0 0 0" range="-0.205043 1.13" />
+                        <joint axis="0 1 0" damping="0" name="jth2" pos="0 0 0" range="-0.205043 1.13" />
                         <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f1" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0.8 1" type="mesh" />
-                        <geom mesh="40_10_link_f1" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0.8 1" type="mesh" />
-                        <body name="th3">
+                        <geom conaffinity="6" contype="1" mesh="40_10_link_f1" quat="0.499998 -0.5 -0.5 -0.500002" rgba="0 0 0.8 1" type="mesh" />
+                        <body gravcomp="1" name="th3">
                           <inertial diaginertia="2.1851e-05 2.02903e-05 4.2785e-06" mass="0.0402067" pos="0 0 0" quat="0.525235 0.50184 0.485539 0.486351" />
-                          <joint axis="1 0 0" damping="5" name="jth3" pos="0 0 0" range="-0.2897 1.633" />
+                          <joint axis="1 0 0" damping="0" name="jth3" pos="0 0 0" range="-0.2897 1.633" />
                           <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_t3" quat="0.499998 0.5 0.500002 0.5" rgba="0 0 0 1" type="mesh" />
-                          <geom mesh="40_10_link_t3" quat="0.499998 0.5 0.500002 0.5" rgba="0 0 0 1" type="mesh" />
-                          <body name="th4" pos="0 0.051204 0">
+                          <geom conaffinity="6" contype="1" mesh="40_10_link_t3" quat="0.499998 0.5 0.500002 0.5" rgba="0 0 0 1" type="mesh" />
+                          <body gravcomp="1" name="th4" pos="0 0.051204 0">
                             <inertial diaginertia="2.85555e-05 2.05817e-05 1.90924e-05" mass="0.0574044" pos="0 0.00908081 0" quat="0.146619 0.681349 -0.15383 0.70043" />
-                            <joint axis="1 0 0" damping="5" name="jth4" pos="0 0 0" range="-0.2622 1.81991" />
+                            <joint axis="1 0 0" damping="0" name="jth4" pos="0 0 0" range="-0.2622 1.81991" />
                             <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_t4" quat="0.499998 0.5 0.500002 0.5" rgba="0 0 0.8 1" type="mesh" />
-                            <geom mesh="40_10_link_t4" quat="0.499998 0.5 0.500002 0.5" rgba="0 0 0.8 1" type="mesh" />
+                            <geom conaffinity="6" contype="1" mesh="40_10_link_t4" quat="0.499998 0.5 0.500002 0.5" rgba="0 0 0.8 1" type="mesh" />
                             <geom conaffinity="0" contype="0" density="0" group="1" mesh="40_10_link_f5" pos="0 0.0313 0" quat="0.521332 -0.477716 -0.477714 0.521334" rgba="1 1 1 1" type="mesh" />
-                            <geom mesh="40_10_link_f5" pos="0 0.0313 0" quat="0.737276 0 -0.675592 0" rgba="1 1 1 1" type="mesh" />
+                            <geom conaffinity="6" contype="1" mesh="40_10_link_f5" pos="0 0.0313 0" quat="0.737276 0 -0.675592 0" rgba="1 1 1 1" type="mesh" />
                             <site name="th4_tip" pos="0 0.035 0" size="0.006" />
                           </body>
                         </body>
                       </body>
                     </body>
-                    <site name="palm_center" pos="-0.07 0 0.307" quat="0.707388 0 0 -0.706825" size="0.008" />
+                    <site name="palm_center" pos="0 -0.07 0.16" size="0.008" />
                   </body>
                 </body>
               </body>
@@ -181,51 +181,59 @@
       </body>
     </body>
     <light directional="true" pos="0 0 3" />
-    <geom name="ground" rgba="0.2 0.3 0.4 1" size="3 3 0.1" type="plane" />
-    <body name="table" pos="0.8 0 0.38">
-      <geom rgba="0.6 0.4 0.25 1" size="0.2 0.225 0.15" type="box" />
+    <geom conaffinity="3" contype="4" name="ground" rgba="0.2 0.3 0.4 1" size="3 3 0.1" type="plane" />
+    <body name="table" pos="0.8 0 -0.1">
+      <geom conaffinity="3" contype="4" rgba="0.6 0.4 0.25 1" size="0.2375 0.2 0.15" type="box" />
     </body>
-    <body name="object" pos="0.75 0 0.555">
+    <body name="object" pos="0.8 0 0.15">
       <freejoint name="object_freejoint" />
-      <geom mass="0.125" name="object_geom" rgba="0.8 0.2 0.2 1" size="0.025 0.025 0.025" type="box" />
+      <geom conaffinity="5" contype="2" mass="0.0256" name="object_geom" rgba="0.8 0.2 0.2 1" size="0.02 0.02 0.02" type="box" />
     </body>
-    <body name="bucket" pos="1.0 0.6 0.45">
-      <geom name="bucket_bottom" rgba="0.2 0.5 0.8 1" size="0.14 0.14 0.01" type="box" />
-      <geom name="bucket_left" pos="0 0.14 0.12" rgba="0.2 0.5 0.8 1" size="0.14 0.01 0.12" type="box" />
-      <geom name="bucket_right" pos="0 -0.14 0.12" rgba="0.2 0.5 0.8 1" size="0.14 0.01 0.12" type="box" />
-      <geom name="bucket_front" pos="0.14 0 0.12" rgba="0.2 0.5 0.8 1" size="0.01 0.14 0.12" type="box" />
-      <geom name="bucket_back" pos="-0.14 0 0.12" rgba="0.2 0.5 0.8 1" size="0.01 0.14 0.12" type="box" />
+    <body name="bucket" pos="1.0 0.6 0">
+      <geom conaffinity="3" contype="4" name="bucket_bottom" pos="0 0 0.006" rgba="0.2 0.5 0.8 0.3" size="0.077 0.006" type="cylinder" />
+      <geom conaffinity="3" contype="4" euler="0 0 0.0" name="bucket_wall_0" pos="0.094 0.0 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
+      <geom conaffinity="3" contype="4" euler="0 0 0.5235987755982988" name="bucket_wall_1" pos="0.08140638795573724 0.04699999999999999 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
+      <geom conaffinity="3" contype="4" euler="0 0 1.0471975511965976" name="bucket_wall_2" pos="0.047000000000000014 0.08140638795573722 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
+      <geom conaffinity="3" contype="4" euler="0 0 1.5707963267948966" name="bucket_wall_3" pos="5.7558399559925604e-18 0.094 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
+      <geom conaffinity="3" contype="4" euler="0 0 2.0943951023931953" name="bucket_wall_4" pos="-0.04699999999999998 0.08140638795573724 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
+      <geom conaffinity="3" contype="4" euler="0 0 2.6179938779914944" name="bucket_wall_5" pos="-0.08140638795573724 0.04699999999999999 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
+      <geom conaffinity="3" contype="4" euler="0 0 3.141592653589793" name="bucket_wall_6" pos="-0.094 1.1511679911985121e-17 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
+      <geom conaffinity="3" contype="4" euler="0 0 3.665191429188092" name="bucket_wall_7" pos="-0.08140638795573725 -0.04699999999999997 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
+      <geom conaffinity="3" contype="4" euler="0 0 4.1887902047863905" name="bucket_wall_8" pos="-0.04700000000000004 -0.08140638795573721 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
+      <geom conaffinity="3" contype="4" euler="0 0 4.71238898038469" name="bucket_wall_9" pos="-1.726751986797768e-17 -0.094 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
+      <geom conaffinity="3" contype="4" euler="0 0 5.235987755982989" name="bucket_wall_10" pos="0.047000000000000014 -0.08140638795573722 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
+      <geom conaffinity="3" contype="4" euler="0 0 5.759586531581287" name="bucket_wall_11" pos="0.08140638795573721 -0.04700000000000004 0.1" rgba="0.2 0.5 0.8 0.2" size="0.031 0.006 0.10" type="box" />
       <site name="goal" pos="0 0 0.05" rgba="0 1 0 0.5" size="0.02" />
     </body>
   </worldbody>
   <option gravity="0 0 -9.81" integrator="implicitfast" timestep="0.002" />
   <default>
-    <joint armature="0" damping="5" />
-    <geom condim="4" friction="1 0.005 0.0001" />
+    <joint armature="0" />
+    <geom condim="4" friction="1 0.005 0.0001" margin="0.002" />
   </default>
   <actuator>
-    <position ctrllimited="true" ctrlrange="-3.0527 3.0527" forcelimited="true" forcerange="-300 300" joint="xmate_joint_1" kp="140" name="xmate_joint_1_position" />
-    <position ctrllimited="true" ctrlrange="-2.0933 2.0933" forcelimited="true" forcerange="-300 300" joint="xmate_joint_2" kp="140" name="xmate_joint_2_position" />
-    <position ctrllimited="true" ctrlrange="-3.0527 3.0527" forcelimited="true" forcerange="-300 300" joint="xmate_joint_3" kp="140" name="xmate_joint_3_position" />
-    <position ctrllimited="true" ctrlrange="-2.0933 2.0933" forcelimited="true" forcerange="-300 300" joint="xmate_joint_4" kp="140" name="xmate_joint_4_position" />
-    <position ctrllimited="true" ctrlrange="-3.0527 3.0527" forcelimited="true" forcerange="-300 300" joint="xmate_joint_5" kp="140" name="xmate_joint_5_position" />
-    <position ctrllimited="true" ctrlrange="-2.0933 2.0933" forcelimited="true" forcerange="-300 300" joint="xmate_joint_6" kp="140" name="xmate_joint_6_position" />
-    <position ctrllimited="true" ctrlrange="-6.283 6.283" forcelimited="true" forcerange="-300 300" joint="xmate_joint_7" kp="140" name="xmate_joint_7_position" />
-    <position ctrllimited="true" ctrlrange="-0.57 0.57" forcelimited="true" forcerange="-10 10" joint="jmf1" kp="40" name="jmf1_position" />
-    <position ctrllimited="true" ctrlrange="-0.296 1.71" forcelimited="true" forcerange="-10 10" joint="jmf2" kp="40" name="jmf2_position" />
-    <position ctrllimited="true" ctrlrange="-0.274 1.809" forcelimited="true" forcerange="-10 10" joint="jmf3" kp="40" name="jmf3_position" />
-    <position ctrllimited="true" ctrlrange="-0.327 1.718" forcelimited="true" forcerange="-10 10" joint="jmf4" kp="40" name="jmf4_position" />
-    <position ctrllimited="true" ctrlrange="-0.57 0.57" forcelimited="true" forcerange="-10 10" joint="jpf1" kp="40" name="jpf1_position" />
-    <position ctrllimited="true" ctrlrange="-0.296 1.71" forcelimited="true" forcerange="-10 10" joint="jpf2" kp="40" name="jpf2_position" />
-    <position ctrllimited="true" ctrlrange="-0.274 1.809" forcelimited="true" forcerange="-10 10" joint="jpf3" kp="40" name="jpf3_position" />
-    <position ctrllimited="true" ctrlrange="-0.327 1.718" forcelimited="true" forcerange="-10 10" joint="jpf4" kp="40" name="jpf4_position" />
-    <position ctrllimited="true" ctrlrange="-0.57 0.57" forcelimited="true" forcerange="-10 10" joint="jif1" kp="40" name="jif1_position" />
-    <position ctrllimited="true" ctrlrange="-0.296 1.71" forcelimited="true" forcerange="-10 10" joint="jif2" kp="40" name="jif2_position" />
-    <position ctrllimited="true" ctrlrange="-0.274 1.809" forcelimited="true" forcerange="-10 10" joint="jif3" kp="40" name="jif3_position" />
-    <position ctrllimited="true" ctrlrange="-0.327 1.718" forcelimited="true" forcerange="-10 10" joint="jif4" kp="40" name="jif4_position" />
-    <position ctrllimited="true" ctrlrange="0.36357 1.4968" forcelimited="true" forcerange="-10 10" joint="jth1" kp="40" name="jth1_position" />
-    <position ctrllimited="true" ctrlrange="-0.205043 1.13" forcelimited="true" forcerange="-10 10" joint="jth2" kp="40" name="jth2_position" />
-    <position ctrllimited="true" ctrlrange="-0.2897 1.633" forcelimited="true" forcerange="-10 10" joint="jth3" kp="40" name="jth3_position" />
-    <position ctrllimited="true" ctrlrange="-0.2622 1.81991" forcelimited="true" forcerange="-10 10" joint="jth4" kp="40" name="jth4_position" />
+    <general biasprm="0 -140 -10" biastype="affine" ctrllimited="true" ctrlrange="-3.0527 3.0527" forcelimited="true" forcerange="-300 300" gainprm="140" gaintype="fixed" joint="xmate_joint_1" name="xmate_joint_1_position" />
+    <general biasprm="0 -140 -10" biastype="affine" ctrllimited="true" ctrlrange="-2.0933 2.0933" forcelimited="true" forcerange="-300 300" gainprm="140" gaintype="fixed" joint="xmate_joint_2" name="xmate_joint_2_position" />
+    <general biasprm="0 -140 -10" biastype="affine" ctrllimited="true" ctrlrange="-3.0527 3.0527" forcelimited="true" forcerange="-300 300" gainprm="140" gaintype="fixed" joint="xmate_joint_3" name="xmate_joint_3_position" />
+    <general biasprm="0 -140 -10" biastype="affine" ctrllimited="true" ctrlrange="-2.0933 2.0933" forcelimited="true" forcerange="-300 300" gainprm="140" gaintype="fixed" joint="xmate_joint_4" name="xmate_joint_4_position" />
+    <general biasprm="0 -140 -10" biastype="affine" ctrllimited="true" ctrlrange="-3.0527 3.0527" forcelimited="true" forcerange="-300 300" gainprm="140" gaintype="fixed" joint="xmate_joint_5" name="xmate_joint_5_position" />
+    <general biasprm="0 -140 -10" biastype="affine" ctrllimited="true" ctrlrange="-2.0933 2.0933" forcelimited="true" forcerange="-300 300" gainprm="140" gaintype="fixed" joint="xmate_joint_6" name="xmate_joint_6_position" />
+    <general biasprm="0 -140 -10" biastype="affine" ctrllimited="true" ctrlrange="-6.283 6.283" forcelimited="true" forcerange="-300 300" gainprm="140" gaintype="fixed" joint="xmate_joint_7" name="xmate_joint_7_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.57 0.57" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jif1" name="jif1_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.296 1.71" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jif2" name="jif2_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.274 1.809" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jif3" name="jif3_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.327 1.718" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jif4" name="jif4_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.57 0.57" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jmf1" name="jmf1_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.296 1.71" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jmf2" name="jmf2_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.274 1.809" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jmf3" name="jmf3_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.327 1.718" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jmf4" name="jmf4_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.57 0.57" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jpf1" name="jpf1_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.296 1.71" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jpf2" name="jpf2_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.274 1.809" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jpf3" name="jpf3_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.327 1.718" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jpf4" name="jpf4_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="0.36357 1.4968" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jth1" name="jth1_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.205043 1.13" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jth2" name="jth2_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.2897 1.633" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jth3" name="jth3_position" />
+    <general biasprm="0 -40 -5" biastype="affine" ctrllimited="true" ctrlrange="-0.2622 1.81991" forcelimited="true" forcerange="-0.35 0.35" gainprm="40" gaintype="fixed" joint="jth4" name="jth4_position" />
   </actuator>
 </mujoco>

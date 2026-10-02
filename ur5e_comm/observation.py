@@ -189,12 +189,23 @@ class MujocoStateProjector:
 class Ur5eObservationBuilder:
     observation_dim = 69
 
-    def __init__(self, projector, goal_position, object_quaternion=(0.0, 0.0, 0.0, 1.0), object_scale=(1.0, 1.0, 1.0), clamp=10.0):
+    def __init__(
+        self,
+        projector,
+        goal_position,
+        object_quaternion=(0.0, 0.0, 0.0, 1.0),
+        object_scale=(1.0, 1.0, 1.0),
+        clamp=10.0,
+        subtask="throw",
+        goal_offset=None,
+    ):
         self.projector = projector
         self.goal_position = np.asarray(goal_position, dtype=np.float64)
         self.object_quaternion = np.asarray(object_quaternion, dtype=np.float64)
         self.object_scale = np.asarray(object_scale, dtype=np.float64)
         self.clamp = float(clamp)
+        self.subtask = str(subtask)
+        self.goal_offset = None if goal_offset is None else np.asarray(goal_offset, dtype=np.float64)
         if not np.isfinite(self.clamp) or self.clamp <= 0.0:
             raise ValueError("observation clamp must be positive")
         for value, shape, name in (
@@ -208,6 +219,12 @@ class Ur5eObservationBuilder:
         if norm <= 1e-8:
             raise ValueError("object quaternion cannot be zero")
         self.object_quaternion = self.object_quaternion / norm
+        if self.subtask not in ("throw", "grasp"):
+            raise ValueError("subtask must be throw or grasp")
+        if self.goal_offset is not None and (
+            self.goal_offset.shape != (3,) or not np.isfinite(self.goal_offset).all()
+        ):
+            raise ValueError("goal_offset must contain three finite values")
         self.object_position = None
         self.object_linear_velocity = np.zeros(3, dtype=np.float64)
         self.initial_object_z = None
@@ -224,6 +241,8 @@ class Ur5eObservationBuilder:
         if position.shape != (3,) or not np.isfinite(position).all():
             raise ValueError("initial object position must contain three finite values")
         self.object_position = position.copy()
+        if self.goal_offset is not None:
+            self.goal_position = position + self.goal_offset
         self.object_linear_velocity[:] = 0.0
         self.initial_object_z = float(position[2])
         self.progress = 0
@@ -274,8 +293,8 @@ class Ur5eObservationBuilder:
         )
         fingertip_reward = float(fingertip_delta.sum()) * (not lifted) * 50.0
         keypoint_delta = float(np.clip(self.closest_keypoint - keypoint_distance, 0.0, 100.0))
-        keypoint_reward = keypoint_delta * lifted * 200.0
-        near_goal = keypoint_distance <= 0.075 * 1.5
+        keypoint_reward = 0.0 if self.subtask == "grasp" else keypoint_delta * lifted * 200.0
+        near_goal = False if self.subtask == "grasp" else keypoint_distance <= 0.075 * 1.5
         arm_penalty = -0.003 * float(np.abs(state.joint_velocity[:6]).sum())
         gripper_penalty = -0.0003 * float(np.abs(state.joint_velocity[6:]).sum())
         reward = (
@@ -318,7 +337,9 @@ class Ur5eObservationBuilder:
         self.furthest_hand = max(self.furthest_hand, float(fingertip_distances[0]))
         self.closest_keypoint = min(self.closest_keypoint, keypoint_distance)
         self.lifted = lifted
-        if near_goal:
+        if self.subtask == "grasp" and lifted and not lifted_before_update:
+            self.successes += 1.0
+        elif near_goal:
             self.successes += 1.0
         self.reward = reward
         return observation, state
@@ -330,20 +351,33 @@ class Ur5eObservationBuilder:
 class Ur5eActionMapper:
     action_dim = 7
 
-    def __init__(self, period=0.01667, speed_scale=10.0, max_arm_step=0.05, arm_lower=None, arm_upper=None):
+    def __init__(
+        self,
+        period=0.01667,
+        speed_scale=10.0,
+        max_arm_step=0.05,
+        arm_lower=None,
+        arm_upper=None,
+        action_scale=1.0,
+    ):
         self.period = float(period)
         self.speed_scale = float(speed_scale)
         self.max_arm_step = float(max_arm_step)
+        self.action_scale = float(action_scale)
         self.lower = TRAINING_LOWER[:6].copy() if arm_lower is None else np.asarray(arm_lower, dtype=np.float64)
         self.upper = TRAINING_UPPER[:6].copy() if arm_upper is None else np.asarray(arm_upper, dtype=np.float64)
         if self.lower.shape != (6,) or self.upper.shape != (6,) or np.any(self.lower >= self.upper):
             raise ValueError("arm limits must be six valid lower/upper pairs")
         if self.period <= 0.0 or self.speed_scale <= 0.0 or self.max_arm_step <= 0.0:
             raise ValueError("period, speed scale, and maximum arm step must be positive")
+        if not 0.0 < self.action_scale <= 1.0:
+            raise ValueError("action_scale must be in (0, 1]")
         self.previous_arm_target = None
+        self.last_limited_action = None
 
     def reset(self, snapshot: RobotSnapshot):
         self.previous_arm_target = np.clip(snapshot.joint_position.copy(), self.lower, self.upper)
+        self.last_limited_action = None
 
     def map(self, action):
         if self.previous_arm_target is None:
@@ -352,10 +386,13 @@ class Ur5eActionMapper:
         if action.shape != (self.action_dim,) or not np.isfinite(action).all():
             raise ValueError("Expected finite action shape (7,), got {}".format(action.shape))
         action = np.clip(action, -1.0, 1.0)
-        delta = self.speed_scale * self.period * action[:6]
+        limited_action = action.copy()
+        limited_action[:6] *= self.action_scale
+        delta = self.speed_scale * self.period * limited_action[:6]
         delta = np.clip(delta, -self.max_arm_step, self.max_arm_step)
         arm_target = np.clip(self.previous_arm_target + delta, self.lower, self.upper)
         self.previous_arm_target = arm_target
+        self.last_limited_action = limited_action
         gripper_position = int(np.clip(round((action[6] + 1.0) * 127.5), 0, 255))
         return arm_target.copy(), gripper_position
 

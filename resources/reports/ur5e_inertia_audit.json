@@ -1,0 +1,937 @@
+{
+  "format_version": 1,
+  "urdf": "/home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/assets/ur5e_robotiq/ur5e_robotiq_2f85_isaacgym.urdf",
+  "mjcf": "/home/liang/Workspace/Ur5e_deploy/resources/assets/robots/ur5e_robotiq_2f85/ur5e_robotiq_2f85.xml",
+  "mapped_body_count": 18,
+  "urdf_missing": [],
+  "urdf_bodies": {
+    "base_link": {
+      "mass": 4.0,
+      "com": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "eigenvalues": [
+        0.00443333156,
+        0.00443333156,
+        0.0072
+      ],
+      "triangle_margin": 0.00166666312,
+      "valid": true
+    },
+    "shoulder_link": {
+      "mass": 3.7,
+      "com": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "eigenvalues": [
+        0.00666,
+        0.010267495893,
+        0.010267495893
+      ],
+      "triangle_margin": 0.006660000000000001,
+      "valid": true
+    },
+    "upper_arm_link": {
+      "mass": 8.393,
+      "com": [
+        0.0,
+        0.0,
+        0.2125
+      ],
+      "eigenvalues": [
+        0.0151074,
+        0.133885781862,
+        0.133885781862
+      ],
+      "triangle_margin": 0.015107399999999993,
+      "valid": true
+    },
+    "forearm_link": {
+      "mass": 2.275,
+      "com": [
+        0.0,
+        0.0,
+        0.196
+      ],
+      "eigenvalues": [
+        0.004095,
+        0.0311796208615,
+        0.0311796208615
+      ],
+      "triangle_margin": 0.004095000000000001,
+      "valid": true
+    },
+    "wrist_1_link": {
+      "mass": 1.219,
+      "com": [
+        0.0,
+        0.127,
+        0.0
+      ],
+      "eigenvalues": [
+        0.0021942,
+        0.00255989897604,
+        0.00255989897604
+      ],
+      "triangle_margin": 0.0021942,
+      "valid": true
+    },
+    "wrist_2_link": {
+      "mass": 1.219,
+      "com": [
+        0.0,
+        0.0,
+        0.1
+      ],
+      "eigenvalues": [
+        0.0021942,
+        0.00255989897604,
+        0.00255989897604
+      ],
+      "triangle_margin": 0.0021942,
+      "valid": true
+    },
+    "wrist_3_link": {
+      "mass": 0.1879,
+      "com": [
+        0.0,
+        0.0771,
+        0.0
+      ],
+      "eigenvalues": [
+        9.89041005217e-05,
+        9.89041005217e-05,
+        0.0001321171875
+      ],
+      "triangle_margin": 6.569101354340001e-05,
+      "valid": true
+    },
+    "robotiq_arg2f_base_link": {
+      "mass": 0.22652,
+      "com": [
+        8.625e-08,
+        -4.6583e-06,
+        0.03145
+      ],
+      "eigenvalues": [
+        0.00013477997281687268,
+        0.0001783200271735491,
+        0.00020005000000957823
+      ],
+      "triangle_margin": 0.00011304999998084357,
+      "valid": true
+    },
+    "left_outer_knuckle": {
+      "mass": 0.00853198276973456,
+      "com": [
+        -0.000200000000003065,
+        0.0199435877845359,
+        0.0292245259211331
+      ],
+      "eigenvalues": [
+        2.8218310676503036e-07,
+        2.8040667855643095e-06,
+        2.89328108496468e-06
+      ],
+      "triangle_margin": 1.9296880736465967e-07,
+      "valid": true
+    },
+    "left_outer_finger": {
+      "mass": 0.022614240507152,
+      "com": [
+        0.00030115855001899,
+        0.0373907951953854,
+        -0.0208027427000385
+      ],
+      "eigenvalues": [
+        1.5959840156067968e-06,
+        1.5251831327300172e-05,
+        1.6230450132310093e-05
+      ],
+      "triangle_margin": 6.173652105968762e-07,
+      "valid": true
+    },
+    "left_inner_finger": {
+      "mass": 0.0104003125914103,
+      "com": [
+        0.000299999999999317,
+        0.0160078233491243,
+        -0.0136945669206257
+      ],
+      "eigenvalues": [
+        5.145736212775905e-07,
+        2.557678597030235e-06,
+        2.71909453810972e-06
+      ],
+      "triangle_margin": 3.5315768019810583e-07,
+      "valid": true
+    },
+    "left_inner_finger_pad": {
+      "mass": 0.00523875,
+      "com": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "eigenvalues": [
+        2.288995414062499e-07,
+        6.315193070312498e-07,
+        8.252122656249998e-07
+      ],
+      "triangle_margin": 3.520658281249989e-08,
+      "valid": true
+    },
+    "left_inner_knuckle": {
+      "mass": 0.0271177346495152,
+      "com": [
+        0.000123011831763771,
+        0.0507850843201817,
+        0.00103968640075166
+      ],
+      "eigenvalues": [
+        2.8131908154463523e-06,
+        2.619357756634102e-05,
+        2.8380880737237226e-05
+      ],
+      "triangle_margin": 6.258876445501461e-07,
+      "valid": true
+    },
+    "right_outer_knuckle": {
+      "mass": 0.00853198276973456,
+      "com": [
+        -0.000200000000003065,
+        0.0199435877845359,
+        0.0292245259211331
+      ],
+      "eigenvalues": [
+        2.8218310676503036e-07,
+        2.8040667855643095e-06,
+        2.89328108496468e-06
+      ],
+      "triangle_margin": 1.9296880736465967e-07,
+      "valid": true
+    },
+    "right_outer_finger": {
+      "mass": 0.022614240507152,
+      "com": [
+        0.00030115855001899,
+        0.0373907951953854,
+        -0.0208027427000385
+      ],
+      "eigenvalues": [
+        1.5959840156067968e-06,
+        1.5251831327300172e-05,
+        1.6230450132310093e-05
+      ],
+      "triangle_margin": 6.173652105968762e-07,
+      "valid": true
+    },
+    "right_inner_finger": {
+      "mass": 0.0104003125914103,
+      "com": [
+        0.000299999999999317,
+        0.0160078233491243,
+        -0.0136945669206257
+      ],
+      "eigenvalues": [
+        5.145736212775905e-07,
+        2.557678597030235e-06,
+        2.71909453810972e-06
+      ],
+      "triangle_margin": 3.5315768019810583e-07,
+      "valid": true
+    },
+    "right_inner_finger_pad": {
+      "mass": 0.00523875,
+      "com": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "eigenvalues": [
+        2.288995414062499e-07,
+        6.315193070312498e-07,
+        8.252122656249998e-07
+      ],
+      "triangle_margin": 3.520658281249989e-08,
+      "valid": true
+    },
+    "right_inner_knuckle": {
+      "mass": 0.0271177346495152,
+      "com": [
+        0.000123011831763771,
+        0.0507850843201817,
+        0.00103968640075166
+      ],
+      "eigenvalues": [
+        2.8131908154463523e-06,
+        2.619357756634102e-05,
+        2.8380880737237226e-05
+      ],
+      "triangle_margin": 6.258876445501461e-07,
+      "valid": true
+    }
+  },
+  "mujoco_bodies": {
+    "base_link": {
+      "mass": 4.0,
+      "com": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "eigenvalues": [
+        0.00443333156,
+        0.00443333156,
+        0.0072
+      ],
+      "triangle_margin": 0.00166666312,
+      "valid": true
+    },
+    "shoulder_link": {
+      "mass": 3.7,
+      "com": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "eigenvalues": [
+        0.00666,
+        0.0102675,
+        0.0102675
+      ],
+      "triangle_margin": 0.006660000000000001,
+      "valid": true
+    },
+    "upper_arm_link": {
+      "mass": 8.393,
+      "com": [
+        0.0,
+        0.0,
+        0.2125
+      ],
+      "eigenvalues": [
+        0.0151074,
+        0.133886,
+        0.133886
+      ],
+      "triangle_margin": 0.015107399999999993,
+      "valid": true
+    },
+    "forearm_link": {
+      "mass": 2.275,
+      "com": [
+        0.0,
+        0.0,
+        0.196
+      ],
+      "eigenvalues": [
+        0.004095,
+        0.0311796,
+        0.0311796
+      ],
+      "triangle_margin": 0.004094999999999998,
+      "valid": true
+    },
+    "wrist_1_link": {
+      "mass": 1.219,
+      "com": [
+        0.0,
+        0.127,
+        0.0
+      ],
+      "eigenvalues": [
+        0.0021942,
+        0.0025599,
+        0.0025599
+      ],
+      "triangle_margin": 0.0021942,
+      "valid": true
+    },
+    "wrist_2_link": {
+      "mass": 1.219,
+      "com": [
+        0.0,
+        0.0,
+        0.1
+      ],
+      "eigenvalues": [
+        0.0021942,
+        0.0025599,
+        0.0025599
+      ],
+      "triangle_margin": 0.0021942,
+      "valid": true
+    },
+    "wrist_3_link": {
+      "mass": 0.1879,
+      "com": [
+        0.0,
+        0.0771,
+        0.0
+      ],
+      "eigenvalues": [
+        9.89041005217e-05,
+        9.89041005217e-05,
+        0.0001321171875
+      ],
+      "triangle_margin": 6.569101354340001e-05,
+      "valid": true
+    },
+    "robotiq_arg2f_base_link": {
+      "mass": 0.22652,
+      "com": [
+        8.625e-08,
+        -4.6583e-06,
+        0.03145
+      ],
+      "eigenvalues": [
+        0.00013477997281687278,
+        0.00017832002717354915,
+        0.00020005000000957837
+      ],
+      "triangle_margin": 0.00011304999998084354,
+      "valid": true
+    },
+    "left_outer_knuckle": {
+      "mass": 0.00853198276973456,
+      "com": [
+        -0.0002,
+        0.0199435877845359,
+        0.0292245259211331
+      ],
+      "eigenvalues": [
+        2.821831067650303e-07,
+        2.8040667855643095e-06,
+        2.89328108496468e-06
+      ],
+      "triangle_margin": 1.9296880736465967e-07,
+      "valid": true
+    },
+    "left_outer_finger": {
+      "mass": 0.022614240507152,
+      "com": [
+        0.00030115855001899,
+        0.0373907951953854,
+        -0.0208027427000385
+      ],
+      "eigenvalues": [
+        1.595984015606799e-06,
+        1.5251831327300182e-05,
+        1.6230450132310097e-05
+      ],
+      "triangle_margin": 6.17365210596883e-07,
+      "valid": true
+    },
+    "left_inner_finger": {
+      "mass": 0.0104003125914103,
+      "com": [
+        0.0003,
+        0.0160078233491243,
+        -0.0136945669206257
+      ],
+      "eigenvalues": [
+        5.145736212775912e-07,
+        2.5576785970302364e-06,
+        2.7190945381097207e-06
+      ],
+      "triangle_margin": 3.531576801981067e-07,
+      "valid": true
+    },
+    "left_inner_finger_pad": {
+      "mass": 0.005238749999999999,
+      "com": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "eigenvalues": [
+        2.288995414062499e-07,
+        6.315193070312498e-07,
+        8.252122656249998e-07
+      ],
+      "triangle_margin": 3.520658281249989e-08,
+      "valid": true
+    },
+    "left_inner_knuckle": {
+      "mass": 0.0271177346495152,
+      "com": [
+        0.000123011831763771,
+        0.0507850843201817,
+        0.00103968640075166
+      ],
+      "eigenvalues": [
+        2.813190815453056e-06,
+        2.6193577566341018e-05,
+        2.8380880737230518e-05
+      ],
+      "triangle_margin": 6.258876445635563e-07,
+      "valid": true
+    },
+    "right_outer_knuckle": {
+      "mass": 0.00853198276973456,
+      "com": [
+        -0.0002,
+        0.0199435877845359,
+        0.0292245259211331
+      ],
+      "eigenvalues": [
+        2.821831067650303e-07,
+        2.8040667855643095e-06,
+        2.89328108496468e-06
+      ],
+      "triangle_margin": 1.9296880736465967e-07,
+      "valid": true
+    },
+    "right_outer_finger": {
+      "mass": 0.022614240507152,
+      "com": [
+        0.00030115855001899,
+        0.0373907951953854,
+        -0.0208027427000385
+      ],
+      "eigenvalues": [
+        1.595984015606799e-06,
+        1.5251831327300182e-05,
+        1.6230450132310097e-05
+      ],
+      "triangle_margin": 6.17365210596883e-07,
+      "valid": true
+    },
+    "right_inner_finger": {
+      "mass": 0.0104003125914103,
+      "com": [
+        0.0003,
+        0.0160078233491243,
+        -0.0136945669206257
+      ],
+      "eigenvalues": [
+        5.145736212775912e-07,
+        2.5576785970302364e-06,
+        2.7190945381097207e-06
+      ],
+      "triangle_margin": 3.531576801981067e-07,
+      "valid": true
+    },
+    "right_inner_finger_pad": {
+      "mass": 0.005238749999999999,
+      "com": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "eigenvalues": [
+        2.288995414062499e-07,
+        6.315193070312498e-07,
+        8.252122656249998e-07
+      ],
+      "triangle_margin": 3.520658281249989e-08,
+      "valid": true
+    },
+    "right_inner_knuckle": {
+      "mass": 0.0271177346495152,
+      "com": [
+        0.000123011831763771,
+        0.0507850843201817,
+        0.00103968640075166
+      ],
+      "eigenvalues": [
+        2.813190815453056e-06,
+        2.6193577566341018e-05,
+        2.8380880737230518e-05
+      ],
+      "triangle_margin": 6.258876445635563e-07,
+      "valid": true
+    }
+  },
+  "urdf_mujoco_difference": {
+    "base_link": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 0.0,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "shoulder_link": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 4.107000000502792e-09,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "upper_arm_link": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 2.1813799999659267e-07,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "forearm_link": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 2.0861500003160893e-08,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "wrist_1_link": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 1.0239600001238358e-09,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "wrist_2_link": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 1.0239600001238358e-09,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "wrist_3_link": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 0.0,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "robotiq_arg2f_base_link": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 1.3552527156068805e-19,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "left_outer_knuckle": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 5.293955920339377e-23,
+      "com_max_abs": 3.0649853315078968e-15,
+      "matched": true
+    },
+    "left_outer_finger": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 1.0164395367051604e-20,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "left_inner_finger": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 1.2705494208814505e-21,
+      "com_max_abs": 6.829931585572435e-16,
+      "matched": true
+    },
+    "left_inner_finger_pad": {
+      "mass_abs": 1.734723475976807e-18,
+      "eigenvalues_max_abs": 0.0,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "left_inner_knuckle": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 6.708500942254059e-18,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "right_outer_knuckle": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 5.293955920339377e-23,
+      "com_max_abs": 3.0649853315078968e-15,
+      "matched": true
+    },
+    "right_outer_finger": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 1.0164395367051604e-20,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "right_inner_finger": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 1.2705494208814505e-21,
+      "com_max_abs": 6.829931585572435e-16,
+      "matched": true
+    },
+    "right_inner_finger_pad": {
+      "mass_abs": 1.734723475976807e-18,
+      "eigenvalues_max_abs": 0.0,
+      "com_max_abs": 0.0,
+      "matched": true
+    },
+    "right_inner_knuckle": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 6.708500942254059e-18,
+      "com_max_abs": 0.0,
+      "matched": true
+    }
+  },
+  "physx_bodies": {
+    "base_link": {
+      "mass": 4.0,
+      "eigenvalues": [
+        0.004433331545442343,
+        0.004433331545442343,
+        0.007200000341981649
+      ],
+      "triangle_margin": 0.0016666627489030361,
+      "valid": true
+    },
+    "shoulder_link": {
+      "mass": 3.700000047683716,
+      "eigenvalues": [
+        0.006659999955445528,
+        0.010267496109008789,
+        0.010267496109008789
+      ],
+      "triangle_margin": 0.006659999955445528,
+      "valid": true
+    },
+    "upper_arm_link": {
+      "mass": 8.392999649047852,
+      "eigenvalues": [
+        0.01510739978402853,
+        0.13388578593730927,
+        0.13388578593730927
+      ],
+      "triangle_margin": 0.01510739978402853,
+      "valid": true
+    },
+    "forearm_link": {
+      "mass": 2.2750000953674316,
+      "eigenvalues": [
+        0.004095000214874744,
+        0.03117961995303631,
+        0.03117961995303631
+      ],
+      "triangle_margin": 0.004095000214874744,
+      "valid": true
+    },
+    "wrist_1_link": {
+      "mass": 1.218999981880188,
+      "eigenvalues": [
+        0.0021941999439150095,
+        0.0025598988868296146,
+        0.0025598988868296146
+      ],
+      "triangle_margin": 0.0021941999439150095,
+      "valid": true
+    },
+    "wrist_2_link": {
+      "mass": 1.218999981880188,
+      "eigenvalues": [
+        0.0021941999439150095,
+        0.0025598988868296146,
+        0.0025598988868296146
+      ],
+      "triangle_margin": 0.0021941999439150095,
+      "valid": true
+    },
+    "wrist_3_link": {
+      "mass": 0.18790000677108765,
+      "eigenvalues": [
+        9.890409273793921e-05,
+        9.890409273793921e-05,
+        0.00013211718760430813
+      ],
+      "triangle_margin": 6.569099787157029e-05,
+      "valid": true
+    },
+    "robotiq_arg2f_base_link": {
+      "mass": 0.22651998698711395,
+      "eigenvalues": [
+        0.0001347799717330634,
+        0.00017832002584113505,
+        0.00020004999533787792
+      ],
+      "triangle_margin": 0.00011305000223632051,
+      "valid": true
+    },
+    "left_outer_knuckle": {
+      "mass": 0.008531983010470867,
+      "eigenvalues": [
+        2.8218303363608383e-07,
+        2.8040665014086878e-06,
+        2.8932811346749077e-06
+      ],
+      "triangle_margin": 1.9296840036986396e-07,
+      "valid": true
+    },
+    "left_outer_finger": {
+      "mass": 0.022614240646362305,
+      "eigenvalues": [
+        1.5959846040301632e-06,
+        1.5251830600019496e-05,
+        1.6230452075002283e-05
+      ],
+      "triangle_margin": 6.173631290473777e-07,
+      "valid": true
+    },
+    "left_inner_finger": {
+      "mass": 0.010400312952697277,
+      "eigenvalues": [
+        5.14573591937893e-07,
+        2.5576783648992423e-06,
+        2.719094482017681e-06
+      ],
+      "triangle_margin": 3.5315747481945436e-07,
+      "valid": true
+    },
+    "left_inner_finger_pad": {
+      "mass": 0.005238750018179417,
+      "eigenvalues": [
+        2.2889952333571273e-07,
+        6.315192990768992e-07,
+        8.252122825069819e-07
+      ],
+      "triangle_margin": 3.520653990563005e-08,
+      "valid": true
+    },
+    "left_inner_knuckle": {
+      "mass": 0.027117734774947166,
+      "eigenvalues": [
+        2.813190884479296e-06,
+        2.6193582351578782e-05,
+        2.838088020570692e-05
+      ],
+      "triangle_margin": 6.258930303511567e-07,
+      "valid": true
+    },
+    "right_outer_knuckle": {
+      "mass": 0.008531983010470867,
+      "eigenvalues": [
+        2.8218303363608383e-07,
+        2.8040665014086878e-06,
+        2.8932811346749077e-06
+      ],
+      "triangle_margin": 1.9296840036986396e-07,
+      "valid": true
+    },
+    "right_outer_finger": {
+      "mass": 0.022614240646362305,
+      "eigenvalues": [
+        1.5959846040301632e-06,
+        1.5251830600019496e-05,
+        1.6230452075002283e-05
+      ],
+      "triangle_margin": 6.173631290473777e-07,
+      "valid": true
+    },
+    "right_inner_finger": {
+      "mass": 0.010400312952697277,
+      "eigenvalues": [
+        5.14573591937893e-07,
+        2.5576783648992423e-06,
+        2.719094482017681e-06
+      ],
+      "triangle_margin": 3.5315747481945436e-07,
+      "valid": true
+    },
+    "right_inner_finger_pad": {
+      "mass": 0.005238750018179417,
+      "eigenvalues": [
+        2.2889952333571273e-07,
+        6.315192990768992e-07,
+        8.252122825069819e-07
+      ],
+      "triangle_margin": 3.520653990563005e-08,
+      "valid": true
+    },
+    "right_inner_knuckle": {
+      "mass": 0.027117734774947166,
+      "eigenvalues": [
+        2.813190884479296e-06,
+        2.6193582351578782e-05,
+        2.838088020570692e-05
+      ],
+      "triangle_margin": 6.258930303511567e-07,
+      "valid": true
+    }
+  },
+  "urdf_physx_difference": {
+    "base_link": {
+      "mass_abs": 0.0,
+      "eigenvalues_max_abs": 3.419816495958683e-10,
+      "matched": true
+    },
+    "shoulder_link": {
+      "mass_abs": 4.7683715642676816e-08,
+      "eigenvalues_max_abs": 2.1600878898075937e-10,
+      "matched": true
+    },
+    "upper_arm_link": {
+      "mass_abs": 3.50952149119621e-07,
+      "eigenvalues_max_abs": 4.075309256723614e-09,
+      "matched": true
+    },
+    "forearm_link": {
+      "mass_abs": 9.536743172944284e-08,
+      "eigenvalues_max_abs": 9.084636931611101e-10,
+      "matched": true
+    },
+    "wrist_1_link": {
+      "mass_abs": 1.811981209520752e-08,
+      "eigenvalues_max_abs": 8.921038517281654e-11,
+      "matched": true
+    },
+    "wrist_2_link": {
+      "mass_abs": 1.811981209520752e-08,
+      "eigenvalues_max_abs": 8.921038517281654e-11,
+      "matched": true
+    },
+    "wrist_3_link": {
+      "mass_abs": 6.771087635026873e-09,
+      "eigenvalues_max_abs": 7.783760791403756e-12,
+      "matched": true
+    },
+    "robotiq_arg2f_base_link": {
+      "mass_abs": 1.3012886046492866e-08,
+      "eigenvalues_max_abs": 4.671700309585858e-12,
+      "matched": true
+    },
+    "left_outer_knuckle": {
+      "mass_abs": 2.407363076245561e-10,
+      "eigenvalues_max_abs": 2.8415562173492604e-13,
+      "matched": true
+    },
+    "left_outer_finger": {
+      "mass_abs": 1.3921030300734216e-10,
+      "eigenvalues_max_abs": 1.94269218902832e-12,
+      "matched": true
+    },
+    "left_inner_finger": {
+      "mass_abs": 3.6128697776527385e-10,
+      "eigenvalues_max_abs": 2.3213099279280553e-13,
+      "matched": true
+    },
+    "left_inner_finger_pad": {
+      "mass_abs": 1.8179416305663665e-11,
+      "eigenvalues_max_abs": 1.8070537183963742e-14,
+      "matched": true
+    },
+    "left_inner_knuckle": {
+      "mass_abs": 1.2543196689640546e-10,
+      "eigenvalues_max_abs": 4.785237761188764e-12,
+      "matched": true
+    },
+    "right_outer_knuckle": {
+      "mass_abs": 2.407363076245561e-10,
+      "eigenvalues_max_abs": 2.8415562173492604e-13,
+      "matched": true
+    },
+    "right_outer_finger": {
+      "mass_abs": 1.3921030300734216e-10,
+      "eigenvalues_max_abs": 1.94269218902832e-12,
+      "matched": true
+    },
+    "right_inner_finger": {
+      "mass_abs": 3.6128697776527385e-10,
+      "eigenvalues_max_abs": 2.3213099279280553e-13,
+      "matched": true
+    },
+    "right_inner_finger_pad": {
+      "mass_abs": 1.8179416305663665e-11,
+      "eigenvalues_max_abs": 1.8070537183963742e-14,
+      "matched": true
+    },
+    "right_inner_knuckle": {
+      "mass_abs": 1.2543196689640546e-10,
+      "eigenvalues_max_abs": 4.785237761188764e-12,
+      "matched": true
+    }
+  },
+  "failures": [],
+  "passed": true
+}

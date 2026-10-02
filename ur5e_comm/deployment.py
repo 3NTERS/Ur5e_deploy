@@ -28,6 +28,14 @@ def request_verdict(input_fn=input):
         print("只接受 y 或 x。")
 
 
+def request_smoke_verdict(input_fn=input):
+    while True:
+        value = input_fn("联调完成请输入 passed，中止请输入 aborted：").strip().lower()
+        if value in ("passed", "aborted"):
+            return value
+        print("只接受 passed 或 aborted。")
+
+
 def request_home_confirmation(input_fn=input):
     value = input_fn("确认夹爪已清空、回零路径无人且无障碍后输入 HOME：").strip()
     if value != "HOME":
@@ -70,6 +78,7 @@ class DeploymentSession:
         prediction_horizon_s=0.10,
         max_object_state_age_s=0.15,
         tracker_factory=EyeOnBaseObjectTracker,
+        deployment_class="production",
     ):
         self.camera = camera
         self.locator = locator
@@ -102,6 +111,7 @@ class DeploymentSession:
         self.prediction_horizon_s = float(prediction_horizon_s)
         self.max_object_state_age_s = float(max_object_state_age_s)
         self.tracker_factory = tracker_factory
+        self.deployment_class = str(deployment_class)
         if policy.observation_dim != observation_builder.observation_dim:
             raise ValueError(
                 "Policy expects {} observations, deployment builds {}".format(
@@ -228,6 +238,7 @@ class DeploymentSession:
         rows = {
             "observation": [],
             "action": [],
+            "limited_action": [],
             "arm_target": [],
             "gripper_target": [],
             "joint_position": [],
@@ -282,10 +293,17 @@ class DeploymentSession:
                     gripper_target,
                     self.observation_builder.projector,
                 )
+                deadline = started + (step + 1) * self.policy_period
+                remaining = deadline - monotonic()
+                if remaining < -self.max_policy_lag:
+                    raise RuntimeError(
+                        "Policy loop missed its schedule by {:.3f}s".format(-remaining)
+                    )
                 if self.execute:
                     self.robot.command(arm_target, gripper_target)
                 rows["observation"].append(observation)
                 rows["action"].append(action)
+                rows["limited_action"].append(self.action_mapper.last_limited_action.copy())
                 rows["arm_target"].append(arm_target)
                 rows["gripper_target"].append(gripper_target)
                 rows["joint_position"].append(snapshot.joint_position)
@@ -311,12 +329,7 @@ class DeploymentSession:
                 rows["object_surface_depth_m"].append(object_state.surface_depth_m)
                 rows["object_center_depth_m"].append(object_state.center_depth_m)
                 self.observation_builder.advance()
-                deadline = started + (step + 1) * self.policy_period
                 remaining = deadline - monotonic()
-                if remaining < -self.max_policy_lag:
-                    raise RuntimeError(
-                        "Policy loop missed its schedule by {:.3f}s".format(-remaining)
-                    )
                 if remaining > 0.0:
                     sleep(remaining)
         finally:
@@ -344,6 +357,7 @@ class DeploymentSession:
                 "detection_center_depth_m": np.asarray(detection.depth_m),
                 "verdict": np.asarray(verdict),
                 "executed": np.asarray(self.execute),
+                "deployment_class": np.asarray(self.deployment_class),
             }
         )
         np.savez_compressed(str(trajectory_path), **arrays)
@@ -351,7 +365,9 @@ class DeploymentSession:
             "episode_id": episode_id,
             "utc_time": datetime.now(timezone.utc).isoformat(),
             "verdict": verdict,
-            "hit": verdict == "y",
+            "deployment_class": self.deployment_class,
+            "hit": (verdict == "y") if self.deployment_class != "smoke_only" else None,
+            "integration_result": verdict if self.deployment_class == "smoke_only" else None,
             "executed": self.execute,
             "steps": len(rows["action"]),
             "trajectory": str(trajectory_path),
