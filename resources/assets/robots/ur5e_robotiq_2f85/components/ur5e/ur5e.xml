@@ -72,7 +72,7 @@
         <geom mesh="shoulder_1" material="black" class="visual"/>
         <geom mesh="shoulder_2" material="jointgray" class="visual"/>
         <geom class="collision" size="0.06 0.06" pos="0 0 -0.04"/>
-        <body name="upper_arm_link" pos="0 0.138 0" quat="1 0 0 0">
+        <body name="upper_arm_link" pos="0 0.138 0" quat="0.7071 0 0.7071 0">
           <inertial mass="8.393" pos="0 0 0.2125" diaginertia="0.133886 0.133886 0.0151074"/>
           <joint name="shoulder_lift_joint" class="size3"/>
           <geom mesh="upperarm_0" material="linkgray" class="visual"/>
@@ -90,7 +90,7 @@
             <geom mesh="forearm_3" material="jointgray" class="visual"/>
             <geom class="collision" pos="0 0.08 0" quat="1 1 0 0" size="0.055 0.06"/>
             <geom class="collision" size="0.038 0.19" pos="0 0 0.2"/>
-            <body name="wrist_1_link" pos="0 0 0.392" quat="1 0 0 0">
+            <body name="wrist_1_link" pos="0 0 0.392" quat="0.7071 0 0.7071 0">
               <inertial mass="1.219" pos="0 0.127 0" diaginertia="0.0025599 0.0025599 0.0021942"/>
               <joint name="wrist_1_joint" class="size1"/>
               <geom mesh="wrist1_0" material="black" class="visual"/>

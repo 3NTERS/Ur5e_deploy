@@ -75,12 +75,114 @@ def sufficiently_distinct(candidate, accepted, minimum_translation, minimum_rota
     return True
 
 
+def render_preview(
+    cv2,
+    frame,
+    board,
+    camera_board,
+    rms,
+    corners,
+    stable,
+    reprojection_limit,
+    accepted_samples,
+    required_samples,
+    capture_message,
+):
+    """Draw live checkerboard detection and capture readiness diagnostics."""
+    image = frame.color_bgr.copy()
+    detected = camera_board is not None and corners is not None and rms is not None
+    quality_ok = detected and float(rms) <= float(reprojection_limit)
+    ready = quality_ok and stable
+    color = (0, 200, 0) if ready else ((0, 180, 255) if detected else (0, 0, 255))
+
+    if detected:
+        cv2.drawChessboardCorners(
+            image,
+            (int(board["columns"]), int(board["rows"])),
+            np.asarray(corners, dtype=np.float32).reshape(-1, 1, 2),
+            True,
+        )
+        distance = float(np.linalg.norm(camera_board[:3, 3]))
+        normal = camera_board[:3, 2]
+        tilt = float(
+            np.degrees(
+                np.arccos(np.clip(abs(float(normal[2])), 0.0, 1.0))
+            )
+        )
+        detection_text = "BOARD DETECTED  RMS={:.3f}px  distance={:.3f}m  tilt={:.1f}deg".format(
+            float(rms), distance, tilt
+        )
+    else:
+        detection_text = "BOARD NOT DETECTED (expected {}x{} inner corners)".format(
+            int(board["columns"]), int(board["rows"])
+        )
+
+    cv2.rectangle(image, (0, 0), (image.shape[1], 92), (0, 0, 0), -1)
+    cv2.rectangle(
+        image,
+        (2, 2),
+        (image.shape[1] - 3, image.shape[0] - 3),
+        color,
+        3,
+    )
+    lines = [
+        "Eye-on-hand samples: {}/{}  {}".format(
+            accepted_samples, required_samples, "READY" if ready else "NOT READY"
+        ),
+        detection_text,
+        "Robot: {} | SPACE/ENTER/C capture | Q/ESC quit".format(
+            "STATIONARY" if stable else "MOVING"
+        ),
+    ]
+    for index, line in enumerate(lines):
+        cv2.putText(
+            image,
+            line,
+            (12, 24 + 27 * index),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            color if index == 0 else (230, 230, 230),
+            1,
+            cv2.LINE_AA,
+        )
+    if capture_message:
+        cv2.rectangle(
+            image,
+            (0, image.shape[0] - 38),
+            (image.shape[1], image.shape[0]),
+            (0, 0, 0),
+            -1,
+        )
+        cv2.putText(
+            image,
+            capture_message,
+            (12, image.shape[0] - 13),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 255),
+            1,
+            cv2.LINE_AA,
+        )
+    return image
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default="resources/config/ur5e_deploy.yaml")
     parser.add_argument("--output", help="override camera.calibration output path")
     parser.add_argument("--samples", type=int, help="override calibration.samples")
     parser.add_argument("--method", choices=("tsai", "park", "horaud", "andreff", "daniilidis"))
+    preview_group = parser.add_mutually_exclusive_group()
+    preview_group.add_argument(
+        "--preview", dest="preview", action="store_true", help="force the live preview window"
+    )
+    preview_group.add_argument(
+        "--no-preview",
+        dest="preview",
+        action="store_false",
+        help="use the original terminal capture prompt without a GUI",
+    )
+    parser.set_defaults(preview=None)
     args = parser.parse_args()
 
     config = yaml.safe_load(resolve_path(args.config).read_text(encoding="utf-8"))
@@ -108,6 +210,16 @@ def main():
         raise ValueError("samples must be >= calibration.minimum_inliers")
     output = resolve_path(args.output or camera_config["calibration"])
     method = args.method or calibration["method"]
+    preview_config = calibration.get("preview", {})
+    preview_enabled = (
+        bool(preview_config.get("enabled", True))
+        if args.preview is None
+        else bool(args.preview)
+    )
+    preview_window = str(preview_config.get("window_name", "Eye-on-hand calibration preview"))
+    preview_wait_key_ms = int(preview_config.get("wait_key_ms", 1))
+    if preview_wait_key_ms < 1:
+        raise ValueError("calibration.preview.wait_key_ms must be >= 1")
     session = resolve_path(calibration["session_directory"]) / datetime.now(timezone.utc).strftime(
         "%Y%m%dT%H%M%S.%fZ"
     )
@@ -142,65 +254,50 @@ def main():
             camera_config.get("model"),
         ) as camera:
             print("已连接相机：{}，序列号 {}".format(camera.device_name, camera.serial))
-            while len(base_to_tcp) < samples_required:
-                command = input(
-                    "姿态 {}/{}：确认机械臂静止且棋盘完整可见后按回车；输入 q 退出：".format(
-                        len(base_to_tcp) + 1, samples_required
+
+            def capture_candidate(
+                frame, before_pose, after_pose, metrics, camera_board, rms, corners
+            ):
+                nonlocal intrinsics_reference
+                nonlocal distortion_reference
+                nonlocal distortion_model_reference
+                validate_stationary(metrics, calibration)
+                if camera_board is None or rms is None or corners is None:
+                    raise RuntimeError("checkerboard is not detected in the current frame")
+                if rms > float(calibration["max_reprojection_error_px"]):
+                    raise RuntimeError(
+                        "reprojection RMS {:.3f}px exceeds {:.3f}px".format(
+                            rms, float(calibration["max_reprojection_error_px"])
+                        )
                     )
-                ).strip().lower()
-                if command == "q":
-                    raise RuntimeError("calibration cancelled after {} samples".format(len(base_to_tcp)))
-                before_pose = np.asarray(receiver.getActualTCPPose(), dtype=np.float64)
-                before_speed = np.asarray(receiver.getActualTCPSpeed(), dtype=np.float64)
-                started = monotonic()
-                frame = camera.read()
-                after_pose = np.asarray(receiver.getActualTCPPose(), dtype=np.float64)
-                after_speed = np.asarray(receiver.getActualTCPSpeed(), dtype=np.float64)
-                metrics = capture_motion_metrics(
-                    before_pose, after_pose, before_speed, after_speed, monotonic() - started
+                tcp_transform = average_transforms(
+                    [tcp_pose_to_transform(before_pose), tcp_pose_to_transform(after_pose)]
                 )
-                try:
-                    validate_stationary(metrics, calibration)
-                    camera_board, rms, corners = estimate_checkerboard_pose(
-                        frame.color_bgr,
-                        frame.intrinsics,
-                        int(board["columns"]),
-                        int(board["rows"]),
-                        float(board["square_size_m"]),
+                if not sufficiently_distinct(
+                    tcp_transform,
+                    base_to_tcp,
+                    float(calibration["minimum_sample_translation_m"]),
+                    float(calibration["minimum_sample_rotation_deg"]),
+                ):
+                    raise RuntimeError("pose is too similar to an accepted sample")
+                if intrinsics_reference is None:
+                    intrinsics_reference = frame.intrinsics.matrix
+                    distortion_reference = np.asarray(
+                        frame.intrinsics.distortion, dtype=np.float64
                     )
-                    if rms > float(calibration["max_reprojection_error_px"]):
-                        raise RuntimeError(
-                            "reprojection RMS {:.3f}px exceeds {:.3f}px".format(
-                                rms, float(calibration["max_reprojection_error_px"])
-                            )
-                        )
-                    tcp_transform = average_transforms(
-                        [tcp_pose_to_transform(before_pose), tcp_pose_to_transform(after_pose)]
+                    distortion_model_reference = frame.intrinsics.distortion_model
+                elif (
+                    not np.allclose(
+                        intrinsics_reference, frame.intrinsics.matrix, atol=1e-9
                     )
-                    if not sufficiently_distinct(
-                        tcp_transform,
-                        base_to_tcp,
-                        float(calibration["minimum_sample_translation_m"]),
-                        float(calibration["minimum_sample_rotation_deg"]),
-                    ):
-                        raise RuntimeError("pose is too similar to an accepted sample")
-                    if intrinsics_reference is None:
-                        intrinsics_reference = frame.intrinsics.matrix
-                        distortion_reference = np.asarray(frame.intrinsics.distortion, dtype=np.float64)
-                        distortion_model_reference = frame.intrinsics.distortion_model
-                    elif (
-                        not np.allclose(intrinsics_reference, frame.intrinsics.matrix, atol=1e-9)
-                        or distortion_model_reference != frame.intrinsics.distortion_model
-                        or not np.allclose(
-                            distortion_reference,
-                            np.asarray(frame.intrinsics.distortion, dtype=np.float64),
-                            atol=1e-12,
-                        )
-                    ):
-                        raise RuntimeError("RealSense color intrinsics changed during calibration")
-                except RuntimeError as error:
-                    print("样本拒绝：{}".format(error))
-                    continue
+                    or distortion_model_reference != frame.intrinsics.distortion_model
+                    or not np.allclose(
+                        distortion_reference,
+                        np.asarray(frame.intrinsics.distortion, dtype=np.float64),
+                        atol=1e-12,
+                    )
+                ):
+                    raise RuntimeError("RealSense color intrinsics changed during calibration")
 
                 base_to_tcp.append(tcp_transform)
                 camera_to_board.append(camera_board)
@@ -215,12 +312,171 @@ def main():
                 )
                 image_path = session / "sample_{:03d}.png".format(len(base_to_tcp))
                 if not cv2.imwrite(str(image_path), annotated):
-                    raise RuntimeError("failed to save calibration image {}".format(image_path))
+                    raise RuntimeError(
+                        "failed to save calibration image {}".format(image_path)
+                    )
                 print(
                     "已接受 {}/{}：重投影 RMS={:.3f}px，图像={}".format(
                         len(base_to_tcp), samples_required, rms, image_path
                     )
                 )
+                return "ACCEPTED {}/{}  RMS={:.3f}px".format(
+                    len(base_to_tcp), samples_required, rms
+                )
+
+            def read_candidate():
+                before_pose = np.asarray(receiver.getActualTCPPose(), dtype=np.float64)
+                before_speed = np.asarray(receiver.getActualTCPSpeed(), dtype=np.float64)
+                started = monotonic()
+                frame = camera.read()
+                after_pose = np.asarray(receiver.getActualTCPPose(), dtype=np.float64)
+                after_speed = np.asarray(receiver.getActualTCPSpeed(), dtype=np.float64)
+                metrics = capture_motion_metrics(
+                    before_pose, after_pose, before_speed, after_speed, monotonic() - started
+                )
+                try:
+                    camera_board, rms, corners = estimate_checkerboard_pose(
+                        frame.color_bgr,
+                        frame.intrinsics,
+                        int(board["columns"]),
+                        int(board["rows"]),
+                        float(board["square_size_m"]),
+                    )
+                    detection_error = None
+                except RuntimeError as error:
+                    camera_board = None
+                    rms = None
+                    corners = None
+                    detection_error = str(error)
+                return (
+                    frame,
+                    before_pose,
+                    after_pose,
+                    metrics,
+                    camera_board,
+                    rms,
+                    corners,
+                    detection_error,
+                )
+
+            if preview_enabled:
+                print(
+                    "实时预览：绿框表示当前帧可采样；按 Space/Enter/C 采样，按 Q/Esc 退出。"
+                )
+                try:
+                    cv2.namedWindow(preview_window, cv2.WINDOW_NORMAL)
+                    cv2.resizeWindow(
+                        preview_window,
+                        int(camera_config["width"]),
+                        int(camera_config["height"]),
+                    )
+                except cv2.error as error:
+                    raise RuntimeError(
+                        "无法创建标定预览窗口；无桌面环境请使用 --no-preview"
+                    ) from error
+                capture_message = "Move camera until the full checkerboard is visible"
+                try:
+                    while len(base_to_tcp) < samples_required:
+                        (
+                            frame,
+                            before_pose,
+                            after_pose,
+                            metrics,
+                            camera_board,
+                            rms,
+                            corners,
+                            detection_error,
+                        ) = read_candidate()
+                        try:
+                            validate_stationary(metrics, calibration)
+                            stable = True
+                        except RuntimeError:
+                            stable = False
+                        preview = render_preview(
+                            cv2,
+                            frame,
+                            board,
+                            camera_board,
+                            rms,
+                            corners,
+                            stable,
+                            float(calibration["max_reprojection_error_px"]),
+                            len(base_to_tcp),
+                            samples_required,
+                            capture_message,
+                        )
+                        cv2.imshow(preview_window, preview)
+                        key = cv2.waitKey(preview_wait_key_ms) & 0xFF
+                        if key in (ord("q"), 27):
+                            raise RuntimeError(
+                                "calibration cancelled after {} samples".format(
+                                    len(base_to_tcp)
+                                )
+                            )
+                        if key in (ord("c"), 10, 13, 32):
+                            try:
+                                if detection_error:
+                                    raise RuntimeError(detection_error)
+                                capture_message = capture_candidate(
+                                    frame,
+                                    before_pose,
+                                    after_pose,
+                                    metrics,
+                                    camera_board,
+                                    rms,
+                                    corners,
+                                )
+                            except RuntimeError as error:
+                                capture_message = "REJECTED: {}".format(error)
+                                print("样本拒绝：{}".format(error))
+                        if cv2.getWindowProperty(preview_window, cv2.WND_PROP_VISIBLE) < 1:
+                            raise RuntimeError(
+                                "calibration preview closed after {} samples".format(
+                                    len(base_to_tcp)
+                                )
+                            )
+                finally:
+                    try:
+                        cv2.destroyWindow(preview_window)
+                    except cv2.error:
+                        pass
+            else:
+                while len(base_to_tcp) < samples_required:
+                    command = input(
+                        "姿态 {}/{}：确认机械臂静止且棋盘完整可见后按回车；输入 q 退出：".format(
+                            len(base_to_tcp) + 1, samples_required
+                        )
+                    ).strip().lower()
+                    if command == "q":
+                        raise RuntimeError(
+                            "calibration cancelled after {} samples".format(
+                                len(base_to_tcp)
+                            )
+                        )
+                    (
+                        frame,
+                        before_pose,
+                        after_pose,
+                        metrics,
+                        camera_board,
+                        rms,
+                        corners,
+                        detection_error,
+                    ) = read_candidate()
+                    try:
+                        if detection_error:
+                            raise RuntimeError(detection_error)
+                        capture_candidate(
+                            frame,
+                            before_pose,
+                            after_pose,
+                            metrics,
+                            camera_board,
+                            rms,
+                            corners,
+                        )
+                    except RuntimeError as error:
+                        print("样本拒绝：{}".format(error))
     finally:
         disconnect = getattr(receiver, "disconnect", None)
         if disconnect is not None:

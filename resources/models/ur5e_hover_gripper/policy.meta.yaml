@@ -1,0 +1,209 @@
+format_version: 2
+task: Ur5eRobotiqHoverGripper
+source:
+  task_file: /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/isaacgymenvs/tasks/ur5e_robotiq/ur5e_robotiq_hover_gripper.py
+  task_config: /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/isaacgymenvs/cfg/task/Ur5eRobotiqHoverGripper.yaml
+  train_config: /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/isaacgymenvs/cfg/train/Ur5eRobotiqHoverGripperPPO.yaml
+onnx:
+  path: /home/liang/Workspace/Ur5e_deploy/resources/models/ur5e_hover_gripper/policy.onnx
+  sha256: ccbc4e7f553030c5206715230ca0935fb766e77c4f91ec614eca7e9bba95d41e
+  deterministic: true
+  output_semantics: clamp(actor_mean, -1, 1)
+  validation:
+    provider: CPUExecutionProvider
+    max_abs_error: 1.7881393432617188e-07
+    passed: true
+io:
+  observation_dim: 69
+  action_dim: 7
+  joint_order:
+  - shoulder_pan_joint
+  - shoulder_lift_joint
+  - elbow_joint
+  - wrist_1_joint
+  - wrist_2_joint
+  - wrist_3_joint
+  - finger_joint
+  - left_inner_finger_joint
+  - left_inner_knuckle_joint
+  - right_outer_knuckle_joint
+  - right_inner_finger_joint
+  - right_inner_knuckle_joint
+  observation_layout:
+  - name: joint_position_scaled
+    offset: 0
+    size: 12
+    slice: '[0:12]'
+  - name: joint_velocity
+    offset: 12
+    size: 12
+    slice: '[12:24]'
+  - name: palm_center_position
+    offset: 24
+    size: 3
+    slice: '[24:27]'
+  - name: palm_quaternion_xyzw_linear_velocity_angular_velocity
+    offset: 27
+    size: 10
+    slice: '[27:37]'
+  - name: object_quaternion_xyzw_linear_velocity_zero_angular_velocity
+    offset: 37
+    size: 10
+    slice: '[37:47]'
+  - name: fingertip_position_relative_to_palm
+    offset: 47
+    size: 6
+    slice: '[47:53]'
+  - name: object_center_relative_to_palm
+    offset: 53
+    size: 3
+    slice: '[53:56]'
+  - name: object_center_relative_to_goal
+    offset: 56
+    size: 3
+    slice: '[56:59]'
+  - name: object_scale
+    offset: 59
+    size: 3
+    slice: '[59:62]'
+  - name: closest_keypoint_max_distance
+    offset: 62
+    size: 1
+    slice: '[62:63]'
+  - name: closest_fingertip_distances
+    offset: 63
+    size: 2
+    slice: '[63:65]'
+  - name: lifted_object
+    offset: 65
+    size: 1
+    slice: '[65:66]'
+  - name: log_episode_progress
+    offset: 66
+    size: 1
+    slice: '[66:67]'
+  - name: log_success_count
+    offset: 67
+    size: 1
+    slice: '[67:68]'
+  - name: reward_scaled
+    offset: 68
+    size: 1
+    slice: '[68:69]'
+  action_layout:
+  - name: arm_increment
+    offset: 0
+    size: 6
+    mapping: prev_target + 1.0 * policy_period * action, safety-clamped
+  - name: gripper_absolute
+    offset: 6
+    size: 1
+    mapping: -1=open(0), +1=closed(255)
+  training_joint_lower:
+  - -5.654866776
+  - -5.654866776
+  - -2.827433388
+  - -5.654866776
+  - -5.654866776
+  - -5.654866776
+  - 0.0
+  - -0.78813
+  - 0.0
+  - 0.0
+  - -0.78813
+  - 0.0
+  training_joint_upper:
+  - 5.654866776
+  - 5.654866776
+  - 2.827433388
+  - 5.654866776
+  - 5.654866776
+  - 5.654866776
+  - 0.72
+  - 0.0
+  - 0.78813
+  - 0.729
+  - 0.0
+  - 0.78813
+deployment_class: validated_hover
+training:
+  initial_arm_rad:
+  - -1.5707963
+  - -1.5707963
+  - -1.5707963
+  - -1.5707963
+  - 1.5707963
+  - 0.0
+  object_position_noise_xy_m: 0.02
+task_contract:
+  subtask: hover_gripper
+  policy_period_s: 0.016666666666666666
+  episode_steps: 300
+  arm_action_scale: 1.0
+  initial_arm_rad:
+  - -1.5707963
+  - -1.5707963
+  - -1.5707963
+  - -1.5707963
+  - 1.5707963
+  - 0.0
+  simulation_to_robot_joint_sign:
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  legacy_sign_mapping_allowed: false
+  hover_height_m: 0.12
+  success_radius_m: 0.08
+  consecutive_hold_steps: 30
+  observation_zero_slices:
+  - - 56
+    - 59
+  - - 62
+    - 66
+  - - 67
+    - 69
+  disable_robot_gravity: true
+  max_command_joint_velocity_rad_s: 0.4
+  observation_joint_order_indices:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 11
+  - 10
+  palm_quaternion_reference_xyzw:
+  - -1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  position_kp: 80.0
+  position_kd: 15.0
+  max_command_joint_acceleration_rad_s2: 2.0
+  training_episode_steps: 300
+inertia_audit:
+  path: /home/liang/Workspace/Ur5e_deploy/resources/reports/ur5e_inertia_audit.json
+  sha256: ba74abd8f08ee180e92123012c5a67313b551bcb5927aeaffd7c4adebf64d452
+checkpoint:
+  path: /home/liang/Workspace/Ur5e_deploy/resources/models/ur5e_hover_gripper/policy.pth
+  sha256: 3c16a8e7573163362c457f099c5aee8b52ce50cf3063bcb0b94ac7f21348e800
+  state_key: model
+  epoch: 816
+  frame: 14761984
+network:
+  model: continuous_a2c_logstd
+  builder: actor_critic
+  mlp_units:
+  - 256
+  - 256
+  - 128
+  activation: elu
+  recurrent: false

@@ -118,6 +118,10 @@ calibration:
   samples: 20
   minimum_inliers: 12
   session_directory: resources/calibration/sessions
+  preview:
+    enabled: true
+    window_name: Eye-on-hand calibration preview
+    wait_key_ms: 1
   checkerboard:
     model: DFVision Q12-240-15
     # This target has 12x9 printed squares, hence 11x8 OpenCV inner corners.

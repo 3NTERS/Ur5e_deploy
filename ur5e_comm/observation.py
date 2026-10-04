@@ -219,8 +219,8 @@ class Ur5eObservationBuilder:
         if norm <= 1e-8:
             raise ValueError("object quaternion cannot be zero")
         self.object_quaternion = self.object_quaternion / norm
-        if self.subtask not in ("throw", "grasp"):
-            raise ValueError("subtask must be throw or grasp")
+        if self.subtask not in ("throw", "grasp", "hover_gripper"):
+            raise ValueError("subtask must be throw, grasp, or hover_gripper")
         if self.goal_offset is not None and (
             self.goal_offset.shape != (3,) or not np.isfinite(self.goal_offset).all()
         ):
@@ -270,7 +270,25 @@ class Ur5eObservationBuilder:
         if object_state is not None:
             self.update_object(object_state.position_base, object_state.linear_velocity_base)
         state = self.projector.project(snapshot)
-        scaled_qpos = 2.0 * (state.joint_position - TRAINING_LOWER) / (TRAINING_UPPER - TRAINING_LOWER) - 1.0
+        if self.subtask == "hover_gripper":
+            order = np.asarray((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 10))
+            observation_qpos = state.joint_position[order]
+            observation_qvel = state.joint_velocity[order]
+            observation_lower = TRAINING_LOWER[order]
+            observation_upper = TRAINING_UPPER[order]
+            observation_palm_state = state.palm_state.copy()
+            if observation_palm_state[0] > 0.0:
+                observation_palm_state[:4] *= -1.0
+        else:
+            observation_qpos = state.joint_position
+            observation_qvel = state.joint_velocity
+            observation_lower = TRAINING_LOWER
+            observation_upper = TRAINING_UPPER
+            observation_palm_state = state.palm_state
+        scaled_qpos = (
+            2.0 * (observation_qpos - observation_lower)
+            / (observation_upper - observation_lower) - 1.0
+        )
         fingertips_relative_palm = state.fingertip_position - state.palm_center_position
         fingertip_distances = np.linalg.norm(state.fingertip_position - self.object_position, axis=1)
         if not np.isfinite(self.closest_fingertips).all():
@@ -293,8 +311,12 @@ class Ur5eObservationBuilder:
         )
         fingertip_reward = float(fingertip_delta.sum()) * (not lifted) * 50.0
         keypoint_delta = float(np.clip(self.closest_keypoint - keypoint_distance, 0.0, 100.0))
-        keypoint_reward = 0.0 if self.subtask == "grasp" else keypoint_delta * lifted * 200.0
-        near_goal = False if self.subtask == "grasp" else keypoint_distance <= 0.075 * 1.5
+        keypoint_reward = 0.0 if self.subtask in ("grasp", "hover_gripper") else keypoint_delta * lifted * 200.0
+        near_goal = (
+            keypoint_distance <= 0.08 if self.subtask == "hover_gripper"
+            else False if self.subtask == "grasp"
+            else keypoint_distance <= 0.075 * 1.5
+        )
         arm_penalty = -0.003 * float(np.abs(state.joint_velocity[:6]).sum())
         gripper_penalty = -0.0003 * float(np.abs(state.joint_velocity[6:]).sum())
         reward = (
@@ -312,9 +334,9 @@ class Ur5eObservationBuilder:
         observation = np.concatenate(
             (
                 scaled_qpos,
-                state.joint_velocity,
+                observation_qvel,
                 state.palm_center_position,
-                state.palm_state,
+                observation_palm_state,
                 object_state_values,
                 fingertips_relative_palm.reshape(-1),
                 keypoint_relative_palm,
@@ -328,6 +350,10 @@ class Ur5eObservationBuilder:
                 [0.01 * reward],
             )
         ).astype(np.float32)
+        if self.subtask == "hover_gripper":
+            observation[56:59] = 0.0
+            observation[62:66] = 0.0
+            observation[67:69] = 0.0
         if observation.shape != (self.observation_dim,):
             raise RuntimeError("Observation shape mismatch: {}".format(observation.shape))
         observation = np.clip(observation, -self.clamp, self.clamp)
@@ -359,11 +385,15 @@ class Ur5eActionMapper:
         arm_lower=None,
         arm_upper=None,
         action_scale=1.0,
+        max_arm_velocity=float("inf"),
+        max_arm_acceleration=float("inf"),
     ):
         self.period = float(period)
         self.speed_scale = float(speed_scale)
         self.max_arm_step = float(max_arm_step)
         self.action_scale = float(action_scale)
+        self.max_arm_velocity = float(max_arm_velocity)
+        self.max_arm_acceleration = float(max_arm_acceleration)
         self.lower = TRAINING_LOWER[:6].copy() if arm_lower is None else np.asarray(arm_lower, dtype=np.float64)
         self.upper = TRAINING_UPPER[:6].copy() if arm_upper is None else np.asarray(arm_upper, dtype=np.float64)
         if self.lower.shape != (6,) or self.upper.shape != (6,) or np.any(self.lower >= self.upper):
@@ -374,10 +404,12 @@ class Ur5eActionMapper:
             raise ValueError("action_scale must be in (0, 1]")
         self.previous_arm_target = None
         self.last_limited_action = None
+        self.command_velocity = np.zeros(6, dtype=np.float64)
 
     def reset(self, snapshot: RobotSnapshot):
         self.previous_arm_target = np.clip(snapshot.joint_position.copy(), self.lower, self.upper)
         self.last_limited_action = None
+        self.command_velocity[:] = 0.0
 
     def map(self, action):
         if self.previous_arm_target is None:
@@ -388,8 +420,18 @@ class Ur5eActionMapper:
         action = np.clip(action, -1.0, 1.0)
         limited_action = action.copy()
         limited_action[:6] *= self.action_scale
-        delta = self.speed_scale * self.period * limited_action[:6]
-        delta = np.clip(delta, -self.max_arm_step, self.max_arm_step)
+        desired_velocity = np.clip(
+            self.speed_scale * limited_action[:6],
+            -self.max_arm_velocity, self.max_arm_velocity,
+        )
+        max_velocity_delta = self.max_arm_acceleration * self.period
+        self.command_velocity += np.clip(
+            desired_velocity - self.command_velocity,
+            -max_velocity_delta, max_velocity_delta,
+        )
+        delta = np.clip(
+            self.command_velocity * self.period, -self.max_arm_step, self.max_arm_step
+        )
         arm_target = np.clip(self.previous_arm_target + delta, self.lower, self.upper)
         self.previous_arm_target = arm_target
         self.last_limited_action = limited_action

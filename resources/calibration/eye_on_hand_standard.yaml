@@ -1,0 +1,21 @@
+format_version: 2
+calibration_type: eye_on_hand
+convention: T_tcp_camera maps RealSense color optical-frame metres into the configured UR TCP frame
+tcp_to_camera:
+  - [0.9988402861, 0.0281444791, -0.0390636802, 0.0063882144]
+  - [-0.0298107004, 0.9986410392, -0.0427480639, -0.0219560789]
+  - [0.0378074722, 0.043863004, 0.998321908, -0.1579550714]
+  - [0.0, 0.0, 0.0, 1.0]
+metadata:
+  checkerboard:
+    model: DFVision Q12-240-15
+    columns: 11
+    rows: 8
+    square_size_m: 0.015
+  camera:
+    model: Intel RealSense D435i
+  source: /home/liang/Downloads/eih_T_tcp_cam.txt
+  validation:
+    independent_samples: 10
+    mean_position_error_mm: 1.462
+    max_position_error_mm: 2.360

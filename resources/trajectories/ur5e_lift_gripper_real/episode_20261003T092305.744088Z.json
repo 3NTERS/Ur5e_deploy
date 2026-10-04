@@ -1,0 +1,45 @@
+{
+  "camera": {
+    "calibrated": false,
+    "device_name": "Intel RealSense D435I",
+    "serial": "254522076163",
+    "vision_enabled": true
+  },
+  "completed_steps": 0,
+  "episode_id": "20261003T092305.744088Z",
+  "error": "initial joint error 0.356617 rad exceeds 0.050000 rad",
+  "executed": true,
+  "final_commanded_joint_target": [
+    -1.570826,
+    -1.570778,
+    -1.570819,
+    -1.57083,
+    1.570745,
+    2.2e-05
+  ],
+  "final_policy_joint_target": [
+    -1.570826,
+    -1.570778,
+    -1.570819,
+    -1.57083,
+    1.570745,
+    2.2e-05
+  ],
+  "max_policy_command_backlog_rad": 0.0,
+  "model_sha256": "8b8c6e7c34877a6d0fd3c30ae4731761def7dd5120f41406face07f042b28276",
+  "motion_started": false,
+  "prepared_gripper_position": 3,
+  "requested_steps": 195,
+  "simulation_to_robot_joint_sign": [
+    1.0,
+    1.0,
+    -1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "success": false,
+  "task": "Ur5eRobotiqLiftGripper",
+  "trajectory": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_lift_gripper_real/episode_20261003T092305.744088Z.npz",
+  "utc_time": "2026-10-03T09:23:05.744115+00:00"
+}

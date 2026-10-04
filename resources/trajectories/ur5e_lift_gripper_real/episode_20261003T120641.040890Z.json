@@ -1,0 +1,54 @@
+{
+  "camera": {
+    "calibrated": true,
+    "device_name": "Intel RealSense D435I",
+    "object_tracking_enabled": true,
+    "serial": "254522076163",
+    "vision_enabled": true,
+    "vision_inference_interval_s": 0.2,
+    "vision_warmup_error": null,
+    "vision_warmup_s": 4.2836046909797005,
+    "yolo_visualization": true
+  },
+  "completed_steps": 75,
+  "episode_id": "20261003T120641.040890Z",
+  "error": null,
+  "executed": false,
+  "final_commanded_joint_target": [
+    -1.570826,
+    -1.5822135016477021,
+    -1.5828127315762222,
+    -1.57083,
+    1.570745,
+    2.2e-05
+  ],
+  "final_policy_joint_target": [
+    -1.570826,
+    -1.5822135016477021,
+    -1.5828127315762222,
+    -1.57083,
+    1.570745,
+    2.2e-05
+  ],
+  "final_success_steps": 0,
+  "max_policy_command_backlog_rad": 0.0,
+  "max_policy_cycle_duration_s": 0.008712991024367511,
+  "max_tcp_lift_m": 1.8969317732209223e-05,
+  "model_sha256": "8b8c6e7c34877a6d0fd3c30ae4731761def7dd5120f41406face07f042b28276",
+  "motion_started": false,
+  "object_tracking_csv": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_lift_gripper_real/episode_20261003T120641.040890Z.objects.csv",
+  "observation_csv": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_lift_gripper_real/episode_20261003T120641.040890Z.observations.csv",
+  "requested_steps": 75,
+  "simulation_to_robot_joint_sign": [
+    1.0,
+    1.0,
+    -1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "success": false,
+  "task": "Ur5eRobotiqLiftGripper",
+  "trajectory": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_lift_gripper_real/episode_20261003T120641.040890Z.npz",
+  "utc_time": "2026-10-03T12:06:41.040918+00:00"
+}

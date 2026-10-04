@@ -31,7 +31,33 @@ class Ur5eThrowAdapter:
         self.metadata = yaml.safe_load(Path(metadata_path).read_text(encoding="utf-8"))
         self.task = str(self.metadata.get("task", "Ur5eRobotiqThrow"))
         self.is_grasp = self.task == "Ur5eRobotiqGrasp"
+        self.is_hover = self.task == "Ur5eRobotiqHoverGripper"
+        contract = self.metadata.get("task_contract", {})
+        self.episode_length = int(contract.get("episode_steps", self.episode_length))
+        self.policy_period = float(contract.get("policy_period_s", self.policy_period))
+        self.arm_action_scale = float(contract.get("arm_action_scale", 10.0))
+        self.observation_joint_order = np.asarray(
+            contract.get("observation_joint_order_indices", list(range(12))), dtype=np.int64
+        )
+        self.palm_quaternion_reference = np.asarray(
+            contract.get("palm_quaternion_reference_xyzw", (-1.0, 0.0, 0.0, 0.0)),
+            dtype=np.float64,
+        )
+        self.max_command_joint_velocity = float(
+            contract.get("max_command_joint_velocity_rad_s", float("inf"))
+        )
+        self.max_command_joint_acceleration = float(
+            contract.get("max_command_joint_acceleration_rad_s2", float("inf"))
+        )
         self.model = mujoco.MjModel.from_xml_path(str(self.scene_path))
+        if bool(contract.get("disable_robot_gravity", False)):
+            robot_root = self._id(mujoco.mjtObj.mjOBJ_BODY, "base")
+            for body_id in range(1, self.model.nbody):
+                ancestor = body_id
+                while ancestor != 0 and ancestor != robot_root:
+                    ancestor = int(self.model.body_parentid[ancestor])
+                if ancestor == robot_root:
+                    self.model.body_gravcomp[body_id] = 1.0
         self.data = mujoco.MjData(self.model)
         self.rng = np.random.RandomState(int(seed))
         io = self.metadata["io"]
@@ -43,6 +69,12 @@ class Ur5eThrowAdapter:
         self.qpos_addr = np.asarray([self.model.jnt_qposadr[self._joint_id(name)] for name in self.joint_names])
         self.dof_addr = np.asarray([self.model.jnt_dofadr[self._joint_id(name)] for name in self.joint_names])
         self.arm_actuator_ids = np.asarray([self._actuator_id(name) for name in ARM_ACTUATORS])
+        if self.is_hover:
+            position_kp = float(contract.get("position_kp", 80.0))
+            position_kd = float(contract.get("position_kd", 15.0))
+            self.model.actuator_gainprm[self.arm_actuator_ids, 0] = position_kp
+            self.model.actuator_biasprm[self.arm_actuator_ids, 1] = -position_kp
+            self.model.actuator_biasprm[self.arm_actuator_ids, 2] = -position_kd
         self.gripper_actuator_id = self._actuator_id("fingers_actuator")
         self.palm_site = self._site_id("robotiq_pinch")
         self.palm_body = self._body_id("robotiq_arg2f_base_link")
@@ -55,7 +87,11 @@ class Ur5eThrowAdapter:
         bucket_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "bucket")
         self.bucket_body = None if bucket_id < 0 else bucket_id
         self.goal_site = self._site_id("goal")
-        self.home = np.asarray((-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0.0), dtype=np.float64)
+        self.home = np.asarray(
+            contract.get("initial_arm_rad",
+                         (-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0.0)),
+            dtype=np.float64,
+        )
         self.object_scale = np.asarray(object_scale, dtype=np.float64)
         self._set_object_scale(self.object_scale)
         self.progress = 0
@@ -66,6 +102,7 @@ class Ur5eThrowAdapter:
         self.furthest_hand = -np.inf
         self.previous_target = np.zeros(12, dtype=np.float64)
         self.last_action = np.zeros(7, dtype=np.float64)
+        self.command_velocity = np.zeros(6, dtype=np.float64)
         self.initial_object_z = 0.15
         self.last_reward = 0.0
 
@@ -107,13 +144,15 @@ class Ur5eThrowAdapter:
         return velocity[3:6].copy(), velocity[0:3].copy()
 
     def _default_initial_state(self):
-        if self.is_grasp:
+        if self.is_grasp or self.is_hover:
+            object_position = np.asarray((0.55, 0.0, 0.15))
+            hover_height = float(self.metadata.get("task_contract", {}).get("hover_height_m", 0.12))
             return (
                 np.concatenate((self.home, np.zeros(6))),
                 np.zeros(12),
-                np.asarray((0.55, 0.0, 0.15)),
+                object_position,
                 np.asarray((0.0, 0.0, 0.0, 1.0)),
-                np.asarray((0.55, 0.0, 0.27)),
+                object_position + np.asarray((0.0, 0.0, hover_height)),
             )
         default_qpos = np.concatenate((self.home, np.zeros(6)))
         delta = self.lower - default_qpos + (self.upper - self.lower) * self.rng.uniform(0.0, 1.0, 12)
@@ -170,6 +209,7 @@ class Ur5eThrowAdapter:
         self.closest_fingertips[:] = np.inf
         self.furthest_hand = -np.inf
         self.last_action[:] = 0.0
+        self.command_velocity[:] = 0.0
         self.last_reward = 0.0
         self.initial_object_z = float(object_position[2])
         mujoco.mj_forward(self.model, self.data)
@@ -206,10 +246,16 @@ class Ur5eThrowAdapter:
         lifted = self.lifted
         successes = self.successes
         reward = self._reward(qvel, object_position, keypoint_distance, fingertip_distances) if update_reward else 0.0
-        scaled_qpos = 2.0 * (qpos - self.lower) / (self.upper - self.lower) - 1.0
+        if self.is_hover and np.dot(palm_quaternion, self.palm_quaternion_reference) < 0.0:
+            palm_quaternion = -palm_quaternion
+        order = self.observation_joint_order if self.is_hover else np.arange(12)
+        scaled_qpos = (
+            2.0 * (qpos[order] - self.lower[order])
+            / (self.upper[order] - self.lower[order]) - 1.0
+        )
         observation = np.concatenate(
             (
-                scaled_qpos, qvel, palm_position,
+                scaled_qpos, qvel[order], palm_position,
                 palm_quaternion, palm_linear, palm_angular,
                 object_quaternion, object_linear, object_angular,
                 (fingertips - palm_position).reshape(-1),
@@ -219,6 +265,11 @@ class Ur5eThrowAdapter:
                 [np.log(successes + 1.0)], [0.01 * reward],
             )
         ).astype(np.float32)
+        if self.is_hover:
+            for start, end in self.metadata["task_contract"].get(
+                "observation_zero_slices", ((56, 59), (62, 66), (67, 69))
+            ):
+                observation[int(start):int(end)] = 0.0
         observation = np.clip(observation, -10.0, 10.0)
         if observation.shape != (self.observation_dim,) or not np.isfinite(observation).all():
             raise RuntimeError("Invalid UR5e observation")
@@ -252,8 +303,18 @@ class Ur5eThrowAdapter:
             raise ValueError("Expected a finite 7-dimensional action")
         action = np.clip(action, -1.0, 1.0)
         target = self.previous_target.copy()
+        desired_velocity = np.clip(
+            self.arm_action_scale * action[:6],
+            -self.max_command_joint_velocity, self.max_command_joint_velocity,
+        )
+        max_velocity_delta = self.max_command_joint_acceleration * self.policy_period
+        self.command_velocity += np.clip(
+            desired_velocity - self.command_velocity,
+            -max_velocity_delta, max_velocity_delta,
+        )
         target[:6] = np.clip(
-            target[:6] + 10.0 * self.policy_period * action[:6], self.lower[:6], self.upper[:6]
+            target[:6] + self.command_velocity * self.policy_period,
+            self.lower[:6], self.upper[:6],
         )
         master = 0.5 * (action[6] + 1.0) * 0.72
         target[6:] = np.clip(master * GRIPPER_MULTIPLIERS, self.lower[6:], self.upper[6:])

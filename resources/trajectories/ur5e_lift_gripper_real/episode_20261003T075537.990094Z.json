@@ -1,0 +1,19 @@
+{
+  "camera": {
+    "calibrated": false,
+    "device_name": "Intel RealSense D435I",
+    "serial": "254522076163",
+    "vision_enabled": false
+  },
+  "completed_steps": 0,
+  "episode_id": "20261003T075537.990094Z",
+  "error": "initial joint error 7.681495 rad exceeds 0.050000 rad",
+  "executed": false,
+  "model_sha256": "8b8c6e7c34877a6d0fd3c30ae4731761def7dd5120f41406face07f042b28276",
+  "motion_started": false,
+  "requested_steps": 30,
+  "success": false,
+  "task": "Ur5eRobotiqLiftGripper",
+  "trajectory": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_lift_gripper_real/episode_20261003T075537.990094Z.npz",
+  "utc_time": "2026-10-03T07:55:37.990120+00:00"
+}

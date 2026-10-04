@@ -1,0 +1,148 @@
+format_version: 1
+
+policy:
+  model: resources/models/ur5e_lift_gripper/ur5e_lift_gripper.onnx
+  metadata: resources/models/ur5e_lift_gripper/ur5e_lift_gripper.meta.yaml
+  sha256: 8b8c6e7c34877a6d0fd3c30ae4731761def7dd5120f41406face07f042b28276
+  provider: cpu
+  period: 0.01667
+  episode_steps: 240
+
+robot:
+  # Dedicated Ethernet link to the UR control box.
+  host: 192.168.1.10
+  gripper_port: 63352
+  # Isaac/MuJoCo elbow_joint uses the opposite sign from this UR5e RTDE setup.
+  # The same +/-1 vector maps positions, velocities and incremental actions.
+  simulation_to_robot_joint_sign: [1.0, 1.0, -1.0, 1.0, 1.0, 1.0]
+  # Fixed from a stationary RTDE measurement on 2026-10-03. This is not
+  # recaptured automatically at startup.
+  initial_joint_position: [-1.570826, -1.570778, -1.570819, -1.570830, 1.570745, 0.000022]
+  # Preserve the trained relative lift: shoulder_lift/elbow +0.3708 rad.
+  raised_joint_position: [-1.570826, -1.199978, -1.200019, -1.570830, 1.570745, 0.000022]
+  servo_speed: 0.25
+  servo_acceleration: 0.50
+  servo_period: 0.002
+  servo_lookahead: 0.1
+  servo_gain: 300
+  rtde_receive_priority: 90
+  rtde_control_priority: 85
+  servo_thread_priority: 80
+  # Conservative first-deployment settings.
+  gripper_speed: 32
+  gripper_force: 20
+  gripper_max_position: 230
+  prepare_gripper_open: true
+  gripper_open_timeout_s: 10.0
+
+observation:
+  model: resources/assets/robots/ur5e_robotiq_2f85/ur5e_lift_gripper.xml
+  palm_center_offset: [0.0, 0.0, 0.145]
+
+camera:
+  # Single TCP-mounted D435i used for diagnostics only. Fill this before running.
+  enabled: true
+  model: D435i
+  serial: 254522076163
+  width: 640
+  height: 480
+  fps: 60
+  calibration: resources/calibration/eye_on_hand.yaml
+  require_calibration: true
+  initial_frame_timeout_s: 5.0
+  max_frame_age_s: 0.50
+
+vision:
+  # Keep disabled for the first empty-workspace motion check. When enabled, YOLO
+  # detections are logged but object-related ONNX inputs still remain zero.
+  enabled: true
+  weights: resources/models/vision/object_yolo.pt
+  target_class: object
+  confidence: 0.5
+  depth_radius: 3
+  depth_min: 0.05
+  depth_max: 3.0
+  center_depth_offset_m: 0.01
+  device: null
+  # Vision is diagnostic-only for this policy. Keep inference slower than the
+  # 60 Hz arm loop so YOLO cannot monopolize a control cycle.
+  inference_interval_s: 0.20
+  visualization:
+    enabled: true
+    window_name: UR5e wrist YOLO diagnostics
+    refresh_interval_s: 0.05
+  object_tracking:
+    enabled: true
+    association_max_distance_m: 0.25
+    position_alpha: 0.60
+    velocity_alpha: 0.40
+    prediction_horizon_s: 0.10
+    max_state_age_s: 0.50
+
+calibration:
+  type: eye_on_hand
+  method: park
+  samples: 20
+  minimum_inliers: 12
+  session_directory: resources/calibration/sessions
+  preview:
+    enabled: true
+    window_name: Eye-on-hand calibration preview
+    wait_key_ms: 1
+  checkerboard:
+    model: DFVision Q12-240-15
+    columns: 11
+    rows: 8
+    square_size_m: 0.015
+    pattern_size_m: [0.180, 0.135]
+    overall_size_m: [0.240, 0.200]
+  max_reprojection_error_px: 1.0
+  max_capture_interval_s: 0.25
+  max_capture_translation_delta_m: 0.002
+  max_capture_rotation_delta_deg: 0.5
+  max_tcp_linear_speed_m_s: 0.005
+  max_tcp_angular_speed_rad_s: 0.02
+  minimum_sample_translation_m: 0.020
+  minimum_sample_rotation_deg: 8.0
+  minimum_translation_span_m: 0.10
+  minimum_rotation_span_deg: 30.0
+  max_board_translation_error_m: 0.010
+  max_board_rotation_error_deg: 2.0
+
+safety:
+  # Real motion requires both this flag and the CLI --execute flag.
+  allow_motion: true
+  initial_joint_tolerance: 0.05
+  initial_gripper_open_max: 5
+  corridor_lower: [-1.620826, -1.620778, -1.620819, -1.620830, 1.520745, -0.049978]
+  corridor_upper: [-1.520826, -1.149978, -1.150019, -1.520830, 1.620745, 0.050022]
+  # Limit the slope of the joint target sent to servoJ. The distilled policy
+  # target is still integrated at 60 Hz and is logged separately.
+  max_command_joint_velocity: 0.25
+  max_joint_velocity: 0.50
+  max_target_error: 0.15
+  max_target_error_cycles: 3
+  max_state_age: 0.25
+  max_policy_lag: 0.05
+  max_cycle_duration: 0.10
+  final_arm_tolerance: 0.05
+  final_gripper_tolerance_rad: 0.05
+  consecutive_success_steps: 10
+
+return_to_initial:
+  # Conservative joint-space return for the dedicated recovery script.
+  joint_speed: 0.10
+  joint_acceleration: 0.20
+  position_tolerance: 0.02
+  max_start_joint_velocity: 0.05
+  max_joint_distance: 0.50
+  # Separate recovery envelope; this does not relax the policy corridor above.
+  start_lower: [-1.820826, -1.770778, -1.770819, -1.820830, 1.320745, -0.300000]
+  start_upper: [-1.320826, -1.099978, -1.100019, -1.320830, 1.820745, 0.300000]
+
+output:
+  directory: resources/trajectories/ur5e_lift_gripper_real
+  save_observation_csv: true
+  print_observation_69: true
+  save_object_tracking_csv: true
+  print_object_tracking: true

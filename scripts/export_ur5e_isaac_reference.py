@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 import sys
+from time import sleep
 
 import numpy as np
 
@@ -30,6 +31,10 @@ def parse_args():
     parser.add_argument("--sim-device", default="cuda:0")
     parser.add_argument("--rl-device", default="cuda:0")
     parser.add_argument("--output", default="resources/trajectories/ur5e_isaac_reference.npz")
+    parser.add_argument("--viewer", action="store_true")
+    parser.add_argument("--screenshot")
+    parser.add_argument("--max-arm-velocity", type=float, default=float("inf"))
+    parser.add_argument("--max-arm-acceleration", type=float, default=float("inf"))
     return parser.parse_args()
 
 
@@ -102,9 +107,9 @@ def main():
         num_envs=1,
         sim_device=args.sim_device,
         rl_device=args.rl_device,
-        graphics_device_id=-1,
-        headless=True,
-        force_render=False,
+        graphics_device_id=0 if args.viewer else -1,
+        headless=not args.viewer,
+        force_render=args.viewer,
     )
     policy = PolicyRunner(ROOT / args.model, args.provider)
     policy.reset()
@@ -146,8 +151,19 @@ def main():
     for key, value in first.items():
         rows[key].append(value)
 
+    command_velocity = np.zeros(6, dtype=np.float64)
+    policy_period = float(env.dt * env.control_freq_inv)
+    action_scale = float(env.hand_dof_speed_scale)
     for _ in range(args.steps):
         action = policy.infer(rows["observation"][-1])[0]
+        desired_velocity = np.clip(
+            action_scale * action[:6], -args.max_arm_velocity, args.max_arm_velocity
+        )
+        max_velocity_delta = args.max_arm_acceleration * policy_period
+        command_velocity += np.clip(
+            desired_velocity - command_velocity, -max_velocity_delta, max_velocity_delta
+        )
+        action[:6] = command_velocity / action_scale
         observations, _, done, _ = env.step(
             torch.as_tensor(action[None, :], dtype=torch.float32, device=env.rl_device)
         )
@@ -156,9 +172,15 @@ def main():
         state = _capture(env, canonical_indices)
         for key, value in state.items():
             rows[key].append(value)
+        if args.viewer:
+            sleep(policy_period)
         if bool(done[0]):
             break
 
+    if args.viewer and args.screenshot and getattr(env, "viewer", None) is not None:
+        screenshot = ROOT / args.screenshot
+        screenshot.parent.mkdir(parents=True, exist_ok=True)
+        env.gym.write_viewer_image_to_file(env.viewer, str(screenshot))
     payload = {key: np.asarray(value) for key, value in rows.items()}
     payload["action_target"] = payload["joint_target"][1:].copy()
     for key in (
