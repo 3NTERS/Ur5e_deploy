@@ -1,0 +1,43 @@
+{
+  "camera": {
+    "calibrated": true,
+    "device_name": "Intel RealSense D435I",
+    "inference_interval_s": 0.2,
+    "serial": "254522076163"
+  },
+  "completed_steps": 300,
+  "episode_id": "20261005T095328.789032Z",
+  "error": "return path waypoint 0 has MuJoCo robot contact between object and robotiq_right_inner_finger",
+  "executed": true,
+  "final_success_steps": 0,
+  "initial_object_lock": {
+    "confidence": 0.9554669260978699,
+    "linear_velocity_base": [
+      -0.0006108554191213598,
+      -0.0005042126304269325,
+      0.0012247480605725787
+    ],
+    "pose_sync_error_s": 0.016399635000198032,
+    "position_base": [
+      0.007504315505544458,
+      -0.4942092036296735,
+      0.07412212540406088
+    ],
+    "position_spread_m": 0.0010543464116794423,
+    "speed_m_s": 0.0014585549463864127
+  },
+  "max_cycle_duration_s": 0.01011875799849804,
+  "model_sha256": "1fab8538f3dcf4ef78e0dd2a6d2794e6310a4f888bf33a545e440d1c9235e7b6",
+  "object_csv": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T095328.789032Z.objects.csv",
+  "requested_steps": 300,
+  "return_to_initial": {
+    "confirmed": false,
+    "executed": false,
+    "offered": false,
+    "success": false
+  },
+  "success": false,
+  "task": "Ur5eRobotiqHoverGripper",
+  "trajectory": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T095328.789032Z.npz",
+  "utc_time": "2026-10-05T09:53:28.789092+00:00"
+}

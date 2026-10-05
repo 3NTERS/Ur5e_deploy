@@ -1,0 +1,17 @@
+format_version: 1
+
+# MuJoCo-only reset and observation alignment for the Isaac Gym hover task.
+# Coordinates are expressed in the shared robot-base/world frame used by this
+# scene and by the Isaac Gym task.
+task: Ur5eRobotiqHoverGripper
+object_position_center_base_m: [-0.10214, -0.49067, 0.15]
+object_position_noise_xy_m: [0.12, 0.12]
+randomize_object_quaternion: true
+table_position_base_m: [-0.10214, -0.49067, -0.15]
+palm_center_offset_base_link_m: [0.00133834, 0.03186189, 0.11839264]
+
+# Preserve the trained 69-D hover observation contract. In particular,
+# object absolute coordinates are not injected into the zeroed [56:59] slice.
+observation:
+  object_center_relative_to_palm_slice: [53, 56]
+  zero_slices: [[56, 59], [62, 66], [67, 69]]

@@ -1,0 +1,20 @@
+{
+  "camera": {
+    "calibrated": true,
+    "device_name": "Intel RealSense D435I",
+    "inference_interval_s": 0.2,
+    "serial": "254522076163"
+  },
+  "completed_steps": 0,
+  "episode_id": "20261005T095302.982217Z",
+  "error": "ur_rtde: Please enable remote control on the robot!",
+  "executed": true,
+  "max_cycle_duration_s": 0.0,
+  "model_sha256": "1fab8538f3dcf4ef78e0dd2a6d2794e6310a4f888bf33a545e440d1c9235e7b6",
+  "object_csv": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T095302.982217Z.objects.csv",
+  "requested_steps": 300,
+  "success": false,
+  "task": "Ur5eRobotiqHoverGripper",
+  "trajectory": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T095302.982217Z.npz",
+  "utc_time": "2026-10-05T09:53:02.982266+00:00"
+}

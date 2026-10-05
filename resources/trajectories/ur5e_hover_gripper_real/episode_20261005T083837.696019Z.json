@@ -1,0 +1,36 @@
+{
+  "camera": {
+    "calibrated": true,
+    "device_name": "Intel RealSense D435I",
+    "inference_interval_s": 0.2,
+    "serial": "254522076163"
+  },
+  "completed_steps": 0,
+  "episode_id": "20261005T083837.696019Z",
+  "error": "Commanded palm position [-0.10145954313706049, -0.49157682925347324, 0.36948593705734345] leaves safety workspace",
+  "executed": false,
+  "initial_object_lock": {
+    "confidence": 0.9689921736717224,
+    "linear_velocity_base": [
+      8.785478327747029e-05,
+      3.304240356769948e-05,
+      -0.0003315235754875667
+    ],
+    "pose_sync_error_s": 0.016490954998516827,
+    "position_base": [
+      -0.021715066129565353,
+      -0.528384702916853,
+      0.04267980961484493
+    ],
+    "position_spread_m": 0.0010207897893040531,
+    "speed_m_s": 0.0003445549948590534
+  },
+  "max_cycle_duration_s": 0.0,
+  "model_sha256": "1fab8538f3dcf4ef78e0dd2a6d2794e6310a4f888bf33a545e440d1c9235e7b6",
+  "object_csv": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T083837.696019Z.objects.csv",
+  "requested_steps": 100,
+  "success": false,
+  "task": "Ur5eRobotiqHoverGripper",
+  "trajectory": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T083837.696019Z.npz",
+  "utc_time": "2026-10-05T08:38:37.696046+00:00"
+}

@@ -1,0 +1,36 @@
+{
+  "camera": {
+    "calibrated": true,
+    "device_name": "Intel RealSense D435I",
+    "inference_interval_s": 0.2,
+    "serial": "254522076163"
+  },
+  "completed_steps": 193,
+  "episode_id": "20261005T090223.798985Z",
+  "error": "Measured arm joint is outside configured hard limits",
+  "executed": true,
+  "initial_object_lock": {
+    "confidence": 0.940436601638794,
+    "linear_velocity_base": [
+      0.00040848023342315094,
+      -0.00034905256399661176,
+      -0.001125716576208774
+    ],
+    "pose_sync_error_s": 0.02442990099916642,
+    "position_base": [
+      -0.023017642991042947,
+      -0.5122274876481899,
+      0.04154253659511239
+    ],
+    "position_spread_m": 0.0009969110731606503,
+    "speed_m_s": 0.0012473698743681622
+  },
+  "max_cycle_duration_s": 0.017461216999436147,
+  "model_sha256": "1fab8538f3dcf4ef78e0dd2a6d2794e6310a4f888bf33a545e440d1c9235e7b6",
+  "object_csv": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T090223.798985Z.objects.csv",
+  "requested_steps": 300,
+  "success": false,
+  "task": "Ur5eRobotiqHoverGripper",
+  "trajectory": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T090223.798985Z.npz",
+  "utc_time": "2026-10-05T09:02:23.799032+00:00"
+}

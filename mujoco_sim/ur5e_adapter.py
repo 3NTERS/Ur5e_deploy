@@ -26,7 +26,8 @@ class Ur5eThrowAdapter:
     episode_length = 600
     policy_period = 0.01667
 
-    def __init__(self, scene_path, metadata_path, seed=0, object_scale=(1.0, 1.0, 1.0)):
+    def __init__(self, scene_path, metadata_path, seed=0, object_scale=(1.0, 1.0, 1.0),
+                 simulation_config=None):
         self.scene_path = Path(scene_path)
         self.metadata = yaml.safe_load(Path(metadata_path).read_text(encoding="utf-8"))
         self.task = str(self.metadata.get("task", "Ur5eRobotiqThrow"))
@@ -50,6 +51,7 @@ class Ur5eThrowAdapter:
             contract.get("max_command_joint_acceleration_rad_s2", float("inf"))
         )
         self.model = mujoco.MjModel.from_xml_path(str(self.scene_path))
+        self.simulation_config = simulation_config or {}
         if bool(contract.get("disable_robot_gravity", False)):
             robot_root = self._id(mujoco.mjtObj.mjOBJ_BODY, "base")
             for body_id in range(1, self.model.nbody):
@@ -87,6 +89,48 @@ class Ur5eThrowAdapter:
         bucket_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, "bucket")
         self.bucket_body = None if bucket_id < 0 else bucket_id
         self.goal_site = self._site_id("goal")
+        if self.is_hover and self.simulation_config:
+            center = self.simulation_config.get("object_position_center_base_m")
+            if center is not None:
+                center = np.asarray(center, dtype=np.float64)
+                if center.shape != (3,) or not np.isfinite(center).all():
+                    raise ValueError("object_position_center_base_m must be a finite 3-vector")
+                self.object_position_center = center
+            else:
+                self.object_position_center = None
+            noise = np.asarray(
+                self.simulation_config.get("object_position_noise_xy_m", (0.0, 0.0)),
+                dtype=np.float64,
+            )
+            if noise.shape == ():
+                noise = np.repeat(noise, 2)
+            if noise.shape != (2,) or not np.isfinite(noise).all() or np.any(noise < 0.0):
+                raise ValueError("object_position_noise_xy_m must be a non-negative scalar or 2-vector")
+            self.object_position_noise_xy = noise
+            self.randomize_object_quaternion = bool(
+                self.simulation_config.get("randomize_object_quaternion", False)
+            )
+            palm_offset = self.simulation_config.get("palm_center_offset_base_link_m")
+            if palm_offset is not None:
+                palm_offset = np.asarray(palm_offset, dtype=np.float64)
+                if palm_offset.shape != (3,) or not np.isfinite(palm_offset).all():
+                    raise ValueError("palm_center_offset_base_link_m must be a finite 3-vector")
+                self.model.site_pos[self.palm_site] = palm_offset
+            table_position = self.simulation_config.get("table_position_base_m")
+            if table_position is not None:
+                table_position = np.asarray(table_position, dtype=np.float64)
+                table_body_id = mujoco.mj_name2id(
+                    self.model, mujoco.mjtObj.mjOBJ_BODY, "table"
+                )
+                if table_position.shape != (3,) or not np.isfinite(table_position).all():
+                    raise ValueError("table_position_base_m must be a finite 3-vector")
+                if table_body_id < 0:
+                    raise ValueError("Simulation config specifies table position but scene has no table body")
+                self.model.body_pos[table_body_id] = table_position
+        else:
+            self.object_position_center = None
+            self.object_position_noise_xy = np.zeros(2, dtype=np.float64)
+            self.randomize_object_quaternion = False
         self.home = np.asarray(
             contract.get("initial_arm_rad",
                          (-1.5708, -1.5708, 1.5708, -1.5708, -1.5708, 0.0)),
@@ -144,7 +188,46 @@ class Ur5eThrowAdapter:
         return velocity[3:6].copy(), velocity[0:3].copy()
 
     def _default_initial_state(self):
-        if self.is_grasp or self.is_hover:
+        if self.is_hover:
+            # Keep the hover scene authoritative.  mj_resetData() restores the
+            # freejoint qpos0 compiled from the XML, so do not replace it with
+            # a second hard-coded object pose here.
+            address = self.object_qpos_addr
+            object_position = self.data.qpos[address:address + 3].copy()
+            object_quaternion = wxyz_to_xyzw(
+                self.data.qpos[address + 3:address + 7]
+            )
+            if self.object_position_center is not None:
+                object_position = self.object_position_center.copy()
+            object_position[:2] += self.rng.uniform(
+                -self.object_position_noise_xy,
+                self.object_position_noise_xy,
+            )
+            if self.randomize_object_quaternion:
+                # Same uniform-quaternion construction as Isaac Gym's
+                # Ur5eRobotiqBase.get_random_quat().
+                uvw = self.rng.uniform(0.0, 1.0, 3)
+                object_quaternion = np.asarray(
+                    [
+                        np.sqrt(1.0 - uvw[0]) * np.cos(2.0 * np.pi * uvw[1]),
+                        np.sqrt(uvw[0]) * np.sin(2.0 * np.pi * uvw[2]),
+                        np.sqrt(uvw[0]) * np.cos(2.0 * np.pi * uvw[2]),
+                        np.sqrt(1.0 - uvw[0]) * np.sin(2.0 * np.pi * uvw[1]),
+                    ],
+                    dtype=np.float64,
+                )
+            mujoco.mj_forward(self.model, self.data)
+            goal = object_position + np.asarray(
+                (0.0, 0.0, float(self.metadata.get("task_contract", {}).get("hover_height_m", 0.12)))
+            )
+            return (
+                np.concatenate((self.home, np.zeros(6))),
+                np.zeros(12),
+                object_position,
+                object_quaternion,
+                goal,
+            )
+        if self.is_grasp:
             object_position = np.asarray((0.55, 0.0, 0.15))
             hover_height = float(self.metadata.get("task_contract", {}).get("hover_height_m", 0.12))
             return (

@@ -3,16 +3,39 @@ task: Ur5eRobotiqHoverGripper
 source:
   task_file: /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/isaacgymenvs/tasks/ur5e_robotiq/ur5e_robotiq_hover_gripper.py
   task_config: /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/isaacgymenvs/cfg/task/Ur5eRobotiqHoverGripper.yaml
+  task_config_sha256_at_export: ba7130a1ec48385a1f3e7ef65381285b34f4637bcd66dff0d203fdd7664507f7
   train_config: /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/isaacgymenvs/cfg/train/Ur5eRobotiqHoverGripperPPO.yaml
+  train_config_sha256_at_export: cf55c39349980c73605eb9793c81659fe4d87e9ec587e9e3eeda4a9d8fe24deb
+  io_contract_template: /home/liang/Workspace/Ur5e_deploy/resources/models/ur5e_hover_gripper/legacy/policy_mismatched_19d365b6.meta.yaml
+checkpoint:
+  path: /home/liang/Workspace/Isaacgym_cjlu/IsaacGymEnvs/runs/Ur5eRobotiqHoverGripperPPO_actual_q_05-13-06-58/nn/Ur5eRobotiqHoverGripperPPO_actual_q.pth
+  sha256: c5330c91246aa07d562d371efbf3d03a0793a9e41c0598157541fc3929a12581
+  state_key: model
+  epoch: 271
+  frame: 8880128
 onnx:
   path: /home/liang/Workspace/Ur5e_deploy/resources/models/ur5e_hover_gripper/policy.onnx
-  sha256: ccbc4e7f553030c5206715230ca0935fb766e77c4f91ec614eca7e9bba95d41e
+  sha256: 1fab8538f3dcf4ef78e0dd2a6d2794e6310a4f888bf33a545e440d1c9235e7b6
   deterministic: true
   output_semantics: clamp(actor_mean, -1, 1)
   validation:
     provider: CPUExecutionProvider
-    max_abs_error: 1.7881393432617188e-07
+    max_abs_error: 2.086162567138672e-07
+    tolerance: 1.0e-05
     passed: true
+    real_observation_sources:
+    - path: /tmp/ur5e_hover_isaac_onnx_once.npz
+      count: 300
+    - path: /home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_current_mujoco.npz
+      count: 301
+    position_perturbation_action_range:
+    - 0.18801096081733704
+    - 0.0916643962264061
+    - 0.2558954060077667
+    - 0.15480859577655792
+    - 0.19734106957912445
+    - 0.07757127285003662
+    - 0.13330203294754028
 io:
   observation_dim: 69
   action_dim: 7
@@ -125,19 +148,9 @@ io:
   - 0.729
   - 0.0
   - 0.78813
-deployment_class: validated_hover
-training:
-  initial_arm_rad:
-  - -1.5707963
-  - -1.5707963
-  - -1.5707963
-  - -1.5707963
-  - 1.5707963
-  - 0.0
-  object_position_noise_xy_m: 0.02
 task_contract:
   subtask: hover_gripper
-  policy_period_s: 0.016666666666666666
+  policy_period_s: 0.01667
   episode_steps: 300
   arm_action_scale: 1.0
   initial_arm_rad:
@@ -189,15 +202,6 @@ task_contract:
   position_kd: 15.0
   max_command_joint_acceleration_rad_s2: 2.0
   training_episode_steps: 300
-inertia_audit:
-  path: /home/liang/Workspace/Ur5e_deploy/resources/reports/ur5e_inertia_audit.json
-  sha256: ba74abd8f08ee180e92123012c5a67313b551bcb5927aeaffd7c4adebf64d452
-checkpoint:
-  path: /home/liang/Workspace/Ur5e_deploy/resources/models/ur5e_hover_gripper/policy.pth
-  sha256: 3c16a8e7573163362c457f099c5aee8b52ce50cf3063bcb0b94ac7f21348e800
-  state_key: model
-  epoch: 816
-  frame: 14761984
 network:
   model: continuous_a2c_logstd
   builder: actor_critic
@@ -207,3 +211,15 @@ network:
   - 128
   activation: elu
   recurrent: false
+export_task_config:
+  object_position_center_base_m:
+  - -0.10214
+  - -0.49067
+  - 0.15
+  object_position_noise_xy_m:
+  - 0.12
+  - 0.12
+  palm_center_offset_base_link_m:
+  - 0.00133834
+  - 0.03186189
+  - 0.11839264

@@ -1,0 +1,67 @@
+{
+  "camera": {
+    "calibrated": true,
+    "device_name": "Intel RealSense D435I",
+    "inference_interval_s": 0.2,
+    "serial": "254522076163"
+  },
+  "completed_steps": 300,
+  "episode_id": "20261005T092510.602314Z",
+  "error": null,
+  "executed": true,
+  "final_success_steps": 0,
+  "initial_object_lock": {
+    "confidence": 0.9566048979759216,
+    "linear_velocity_base": [
+      0.00047870711826466573,
+      0.000640790963862349,
+      -0.0002828326821067389
+    ],
+    "pose_sync_error_s": 0.006044571000529686,
+    "position_base": [
+      -0.10328011208505011,
+      -0.3915281502707315,
+      0.03923548501516858
+    ],
+    "position_spread_m": 0.0010102975987566058,
+    "speed_m_s": 0.0008483913545720456
+  },
+  "max_cycle_duration_s": 0.010211351000180002,
+  "model_sha256": "1fab8538f3dcf4ef78e0dd2a6d2794e6310a4f888bf33a545e440d1c9235e7b6",
+  "object_csv": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T092510.602314Z.objects.csv",
+  "requested_steps": 300,
+  "return_to_initial": {
+    "confirmed": true,
+    "executed": true,
+    "final_joint_error_rad": 0.00015591088071653658,
+    "final_joint_position": [
+      -1.5706403891192835,
+      -1.5707839292338868,
+      -1.5709152221679688,
+      -1.570664719944336,
+      1.5707011222839355,
+      1.1920928955078125e-05
+    ],
+    "object_position_base": [
+      -0.11700147520336164,
+      -0.394928293701401,
+      0.05961163822481796
+    ],
+    "offered": true,
+    "opened_gripper_position": 3,
+    "path_samples": 101,
+    "start_joint_position": [
+      -1.3231666723834437,
+      -1.5669072431376954,
+      -2.257784843444824,
+      -1.0364788335612793,
+      1.2192420959472656,
+      0.013959407806396484
+    ],
+    "success": true
+  },
+  "success": false,
+  "task": "Ur5eRobotiqHoverGripper",
+  "trajectory": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T092510.602314Z.npz",
+  "utc_time": "2026-10-05T09:25:10.602362+00:00"
+}

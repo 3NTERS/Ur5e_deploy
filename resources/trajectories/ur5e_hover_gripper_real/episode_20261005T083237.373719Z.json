@@ -1,0 +1,20 @@
+{
+  "camera": {
+    "calibrated": true,
+    "device_name": "Intel RealSense D435I",
+    "inference_interval_s": 0.2,
+    "serial": "254522076163"
+  },
+  "completed_steps": 0,
+  "episode_id": "20261005T083237.373719Z",
+  "error": "Detected object position [-0.021636896488497873, -0.5283868408039046, 0.04246100292486796] is outside configured bounds",
+  "executed": false,
+  "max_cycle_duration_s": 0.0,
+  "model_sha256": "1fab8538f3dcf4ef78e0dd2a6d2794e6310a4f888bf33a545e440d1c9235e7b6",
+  "object_csv": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T083237.373719Z.objects.csv",
+  "requested_steps": 100,
+  "success": false,
+  "task": "Ur5eRobotiqHoverGripper",
+  "trajectory": "/home/liang/Workspace/Ur5e_deploy/resources/trajectories/ur5e_hover_gripper_real/episode_20261005T083237.373719Z.npz",
+  "utc_time": "2026-10-05T08:32:37.373740+00:00"
+}

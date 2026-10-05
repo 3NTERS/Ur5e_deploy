@@ -82,7 +82,7 @@
   </asset>
   <worldbody>
     <light mode="targetbodycom" name="spotlight" pos="0 -1 2" target="wrist_2_link" />
-    <body childclass="ur5e" name="base" quat="1 0 0 0">
+    <body childclass="ur5e" name="base" quat="0 0 0 -1">
       <inertial diaginertia="0.00443333156 0.00443333156 0.0072" mass="4.0" pos="0 0 0" />
       <geom class="visual" material="black" mesh="base_0" />
       <geom class="visual" material="jointgray" mesh="base_1" />
@@ -202,14 +202,14 @@
       </body>
     </body>
     <geom friction="1 0.005 0.0001" name="floor" rgba="0.18 0.18 0.18 1" size="2 2 0.05" type="plane" />
-    <body name="table" pos="0.55 0 -0.10">
+    <body name="table" pos="0 -0.55 -0.15">
       <geom friction="1 0.005 0.0001" name="table_geom" rgba="0.45 0.35 0.25 1" size="0.2375 0.2 0.15" type="box" />
     </body>
-    <body name="object" pos="0.55 0 0.15">
+    <body name="object" pos="0 -0.55 0.15">
       <freejoint name="object_freejoint" />
       <geom density="567" friction="0.9 0.005 0.0001" name="object_geom" rgba="0.9 0.25 0.1 1" size="0.02 0.02 0.02" type="box" />
     </body>
-    <site name="goal" pos="0.55 0 0.27" rgba="0 1 0 0.5" size="0.012" type="sphere" />
+    <site name="goal" pos="0 -0.55 0.27" rgba="0 1 0 0.5" size="0.012" type="sphere" />
   </worldbody>
   <contact>
     <exclude body1="robotiq_arg2f_base_link" body2="robotiq_left_outer_knuckle" />
