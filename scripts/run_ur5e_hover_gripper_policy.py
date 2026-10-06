@@ -723,7 +723,7 @@ def save_result(output_directory, episode_id, rows, summary, save_object_csv):
     return trajectory_path, summary_path, object_csv_path
 
 
-def run(args):
+def run(args, skip_arm_confirmation=False):
     config_path = resolve_path(args.config)
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     policy_config = config["policy"]
@@ -820,7 +820,7 @@ def run(args):
         vision_config.get("device"),
     )
 
-    if args.execute:
+    if args.execute and not skip_arm_confirmation:
         confirmation = input(
             "即将使用腕部相机目标状态执行 hover 策略。确认夹爪为空、工作空间无人且急停可达后输入 ARM："
         ).strip()
@@ -1249,6 +1249,66 @@ def run(args):
     return summary
 
 
+def continuous_artifact_hashes(config_path):
+    """Prevent an unacknowledged model/config change between armed episodes."""
+    config_path = resolve_path(config_path)
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    paths = (
+        config_path,
+        resolve_path(config["policy"]["model"]),
+        resolve_path(config["policy"]["metadata"]),
+        resolve_path(config["observation"]["model"]),
+        resolve_path(config["camera"]["calibration"]),
+        resolve_path(config["vision"]["weights"]),
+    )
+    return {str(path): sha256(path) for path in paths}
+
+
+def run_continuous(args):
+    config = yaml.safe_load(resolve_path(args.config).read_text(encoding="utf-8"))
+    if args.execute:
+        if args.steps != int(config["policy"]["episode_steps"]):
+            raise RuntimeError(
+                "real continuous mode requires a complete {}-step episode".format(
+                    config["policy"]["episode_steps"]
+                )
+            )
+        if not bool(config.get("return_to_initial", {}).get("enabled", False)):
+            raise RuntimeError(
+                "real continuous mode requires return_to_initial.enabled=true"
+            )
+    baseline = continuous_artifact_hashes(args.config)
+    completed = 0
+    while True:
+        if continuous_artifact_hashes(args.config) != baseline:
+            raise RuntimeError(
+                "deployment artifacts changed during continuous mode; "
+                "stop and start a new session with ARM confirmation"
+            )
+        summary = run(args, skip_arm_confirmation=completed > 0)
+        completed += 1
+        if args.execute and not summary.get("return_to_initial", {}).get(
+            "success", False
+        ):
+            print(
+                "上一回合未确认并完成回初始位姿；连续模式结束，"
+                "不会自动启动下一回合。"
+            )
+            break
+        try:
+            response = input(
+                "第 {} 回合已结束。确认现场安全后按回车开始下一回合；"
+                "输入 q 退出：".format(completed)
+            ).strip()
+        except (EOFError, KeyboardInterrupt):
+            print("连续模式已结束。")
+            break
+        if response:
+            print("连续模式已结束；未启动下一回合。")
+            break
+    return completed
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -1257,10 +1317,18 @@ def main():
     parser.add_argument("--provider", choices=("cpu", "cuda"))
     parser.add_argument("--steps", type=int, default=300)
     parser.add_argument(
+        "--continuous", action="store_true",
+        help="run successive episodes; ARM once, then press Enter after each safe return",
+    )
+    parser.add_argument(
         "--execute", action="store_true",
         help="send position targets to real hardware; also requires allow_motion=true",
     )
-    run(parser.parse_args())
+    args = parser.parse_args()
+    if args.continuous:
+        run_continuous(args)
+    else:
+        run(args)
 
 
 if __name__ == "__main__":
