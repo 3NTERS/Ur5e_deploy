@@ -22,6 +22,8 @@ RealSense 和 YOLO 运行真机策略。
 - `scripts/`：训练、导出、预览、sim2sim、标定和真机运行入口。
 - `tests/`：策略接口、观测、动作映射和仿真闭环测试。
 - `docs/`：补充说明和历史方案。
+- `offline_artifacts/`：未纳入 Git 的模型、标定、轨迹等文件的分组压缩包、恢复脚本与说明；
+  生成的 `archives/` 不会上传。
 
 当前 hover-gripper 部署主要使用：
 

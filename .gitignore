@@ -15,3 +15,7 @@ resources/trajectories/
 tests/predictions/
 resources/predictions/
 *.pt
+
+# Local transfer bundles for ignored runtime artifacts. Keep the restore tools
+# and documentation in Git, but do not upload the generated archives.
+offline_artifacts/archives/
