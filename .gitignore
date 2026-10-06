@@ -2,6 +2,7 @@
 **/__pycache__
 **/*.pth
 **/*.log
+resources/models/rokae_allegro/**/*.onnx
 /runs/
 resources/models/ur5e_robotiq/policy.onnx
 resources/models/vision/
