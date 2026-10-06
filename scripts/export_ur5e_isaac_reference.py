@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect a versioned single-environment Isaac Gym trajectory for MuJoCo replay."""
+"""Run a UR5e policy in Isaac Gym and optionally export a MuJoCo reference."""
 
 from __future__ import annotations
 
@@ -32,10 +32,18 @@ def parse_args():
     parser.add_argument("--rl-device", default="cuda:0")
     parser.add_argument("--output", default="resources/trajectories/ur5e_isaac_reference.npz")
     parser.add_argument("--viewer", action="store_true")
+    parser.add_argument(
+        "--view-only",
+        action="store_true",
+        help="show the viewer without collecting or writing a reference trajectory",
+    )
     parser.add_argument("--screenshot")
     parser.add_argument("--max-arm-velocity", type=float, default=float("inf"))
     parser.add_argument("--max-arm-acceleration", type=float, default=float("inf"))
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.view_only and not args.viewer:
+        parser.error("--view-only requires --viewer")
+    return args
 
 
 def _numpy(tensor):
@@ -111,7 +119,8 @@ def main():
         headless=not args.viewer,
         force_render=args.viewer,
     )
-    policy = PolicyRunner(ROOT / args.model, args.provider)
+    model_path = (ROOT / args.model).resolve()
+    policy = PolicyRunner(model_path, args.provider)
     policy.reset()
     env_ids = torch.zeros(1, dtype=torch.long, device=env.device)
     env.reset_idx(env_ids)
@@ -123,39 +132,43 @@ def main():
     env.obs_buf[:, -1] = 0.0
     env.clamp_obs(env.obs_buf)
 
-    canonical_indices = env.arm_dof_indices + env.gripper_dof_indices
-    joint_order = tuple(
-        (
+    observation = _numpy(env.obs_buf[0])
+    rows = None
+    canonical_indices = None
+    joint_order = None
+    if not args.view_only:
+        canonical_indices = env.arm_dof_indices + env.gripper_dof_indices
+        joint_order = (
             "shoulder_pan_joint", "shoulder_lift_joint", "elbow_joint",
             "wrist_1_joint", "wrist_2_joint", "wrist_3_joint",
             "finger_joint", "left_inner_finger_joint", "left_inner_knuckle_joint",
             "right_outer_knuckle_joint", "right_inner_finger_joint", "right_inner_knuckle_joint",
         )
-    )
-    rows = {
-        "observation": [_numpy(env.obs_buf[0])],
-        "action": [],
-        "joint_position": [],
-        "joint_velocity": [],
-        "joint_target": [],
-        "palm_position": [],
-        "palm_state": [],
-        "fingertip_position": [],
-        "object_state": [],
-        "goal_position": [],
-        "lifted": [],
-        "success": [],
-        "reward": [],
-    }
-    first = _capture(env, canonical_indices)
-    for key, value in first.items():
-        rows[key].append(value)
+        rows = {
+            "observation": [observation.copy()],
+            "action": [],
+            "joint_position": [],
+            "joint_velocity": [],
+            "joint_target": [],
+            "palm_position": [],
+            "palm_state": [],
+            "fingertip_position": [],
+            "object_state": [],
+            "goal_position": [],
+            "lifted": [],
+            "success": [],
+            "reward": [],
+        }
+        first = _capture(env, canonical_indices)
+        for key, value in first.items():
+            rows[key].append(value)
 
     command_velocity = np.zeros(6, dtype=np.float64)
     policy_period = float(env.dt * env.control_freq_inv)
     action_scale = float(env.hand_dof_speed_scale)
-    for _ in range(args.steps):
-        action = policy.infer(rows["observation"][-1])[0]
+    steps_run = 0
+    for step in range(args.steps):
+        action = policy.infer(observation)[0]
         desired_velocity = np.clip(
             action_scale * action[:6], -args.max_arm_velocity, args.max_arm_velocity
         )
@@ -167,11 +180,14 @@ def main():
         observations, _, done, _ = env.step(
             torch.as_tensor(action[None, :], dtype=torch.float32, device=env.rl_device)
         )
-        rows["action"].append(action.copy())
-        rows["observation"].append(_numpy(observations["obs"][0]))
-        state = _capture(env, canonical_indices)
-        for key, value in state.items():
-            rows[key].append(value)
+        observation = _numpy(observations["obs"][0])
+        steps_run = step + 1
+        if rows is not None:
+            rows["action"].append(action.copy())
+            rows["observation"].append(observation.copy())
+            state = _capture(env, canonical_indices)
+            for key, value in state.items():
+                rows[key].append(value)
         if args.viewer:
             sleep(policy_period)
         if bool(done[0]):
@@ -181,6 +197,15 @@ def main():
         screenshot = ROOT / args.screenshot
         screenshot.parent.mkdir(parents=True, exist_ok=True)
         env.gym.write_viewer_image_to_file(env.viewer, str(screenshot))
+    if args.view_only:
+        close = getattr(env, "close", None)
+        if close is not None:
+            close()
+        print("view_only=True steps={} task={} model={}".format(
+            steps_run, args.task, model_path
+        ))
+        return
+
     payload = {key: np.asarray(value) for key, value in rows.items()}
     payload["action_target"] = payload["joint_target"][1:].copy()
     for key in (
@@ -196,7 +221,7 @@ def main():
             "object_scale": _numpy(env.object_scales[0]),
             "joint_order": np.asarray(joint_order),
             "quaternion_order": np.asarray("xyzw"),
-            "model_sha256": np.asarray(model_sha256(ROOT / args.model)),
+            "model_sha256": np.asarray(model_sha256(model_path)),
             "seed": np.asarray(args.seed, dtype=np.int64),
             "task": np.asarray(args.task),
         }

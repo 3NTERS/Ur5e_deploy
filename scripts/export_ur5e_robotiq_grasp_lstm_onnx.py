@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export a trained rl-games Ur5eRobotiq LSTM checkpoint to deterministic ONNX."""
+"""Export an rl-games Ur5eRobotiqGrasp LSTM checkpoint to deterministic ONNX."""
 
 from __future__ import annotations
 

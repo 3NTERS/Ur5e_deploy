@@ -1,9 +1,18 @@
+#!/usr/bin/env python3
+"""Run the Allegro-Rokae ONNX policy in MuJoCo."""
+
 import argparse
 from contextlib import nullcontext
+from pathlib import Path
+import sys
 
 import numpy as np
 
 import mujoco.viewer
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from mujoco_sim.episode import EpisodeRunner
 from mujoco_sim.rokae_alignment import load_reference, reference_initial_state

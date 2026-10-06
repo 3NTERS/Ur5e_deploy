@@ -7,4 +7,4 @@ cuda_libs="${rlgpu_site}/nvidia/cublas/lib:${rlgpu_site}/nvidia/cudnn/lib:${rlgp
 export LD_LIBRARY_PATH="${cuda_libs}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
 
 exec conda run --no-capture-output -n rlgpu \
-  python scripts/run_rokae_sim2sim.py "$@"
+  python scripts/export_ur5e_isaac_reference.py "$@"

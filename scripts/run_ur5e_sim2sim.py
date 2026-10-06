@@ -4,8 +4,13 @@
 import argparse
 from contextlib import nullcontext
 from pathlib import Path
+import sys
 
 import yaml
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from mujoco_sim.ur5e_adapter import Ur5eGraspAdapter
 from mujoco_sim.ur5e_sim2sim import (

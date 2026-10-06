@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the UR5e hover actor from a checkpoint and rebuild its ONNX metadata."""
+"""Export the Ur5eRobotiqHoverGripper MLP and rebuild its ONNX metadata."""
 
 import argparse
 import copy
